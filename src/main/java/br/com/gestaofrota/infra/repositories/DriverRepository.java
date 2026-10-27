@@ -22,6 +22,8 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
     @EntityGraph(attributePaths = {"user", "user.sector"})
     Optional<Driver> findById(UUID id);
 
+    Optional<Driver> findByUserId(UUID userId);
+
     boolean existsByUserId(UUID userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

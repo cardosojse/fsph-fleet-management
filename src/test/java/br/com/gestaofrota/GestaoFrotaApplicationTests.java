@@ -9,6 +9,7 @@ import br.com.gestaofrota.application.services.UserService;
 import br.com.gestaofrota.application.services.VehicleService;
 import br.com.gestaofrota.application.services.VehicleDocumentService;
 import br.com.gestaofrota.application.services.DriverService;
+import br.com.gestaofrota.application.services.TripService;
 import br.com.gestaofrota.application.services.DriverLicenseService;
 import br.com.gestaofrota.infra.repositories.RolePermissionRepository;
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,9 @@ class GestaoFrotaApplicationTests {
 
 	@MockitoBean
 	private DriverLicenseService driverLicenseService;
+
+	@MockitoBean
+	private TripService tripService;
 
 	@MockitoBean
 	private RolePermissionRepository rolePermissionRepository;
