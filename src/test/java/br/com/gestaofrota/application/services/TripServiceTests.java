@@ -2,6 +2,7 @@ package br.com.gestaofrota.application.services;
 
 import br.com.gestaofrota.domain.enums.TripStatus;
 import br.com.gestaofrota.domain.exceptions.ConflictException;
+import br.com.gestaofrota.domain.exceptions.AssignmentProviderUnavailableException;
 import br.com.gestaofrota.domain.exceptions.InvalidRequestException;
 import br.com.gestaofrota.domain.exceptions.ResourceNotFoundException;
 import br.com.gestaofrota.domain.exceptions.UnauthorizedAccessException;
@@ -92,7 +93,7 @@ class TripServiceTests {
         lockActiveVehicle();
         givenDriver(true);
 
-        assertThrows(IllegalStateException.class, () -> service.start(userId, vehicleId, 1200));
+        assertThrows(AssignmentProviderUnavailableException.class, () -> service.start(userId, vehicleId, 1200));
         verifyNoInteractions(trips);
     }
 

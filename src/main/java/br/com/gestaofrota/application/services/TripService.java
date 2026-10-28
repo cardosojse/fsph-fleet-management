@@ -2,6 +2,7 @@ package br.com.gestaofrota.application.services;
 
 import br.com.gestaofrota.domain.enums.TripStatus;
 import br.com.gestaofrota.domain.exceptions.ConflictException;
+import br.com.gestaofrota.domain.exceptions.AssignmentProviderUnavailableException;
 import br.com.gestaofrota.domain.exceptions.InvalidRequestException;
 import br.com.gestaofrota.domain.exceptions.ResourceNotFoundException;
 import br.com.gestaofrota.domain.exceptions.UnauthorizedAccessException;
@@ -13,6 +14,8 @@ import br.com.gestaofrota.infra.repositories.TripRepository;
 import br.com.gestaofrota.infra.repositories.VehicleRepository;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -123,10 +126,19 @@ public class TripService implements OpenTripGuard {
 
     private void assertAuthorized(Driver driver, Vehicle vehicle) {
         TripVehicleAuthorization provider = authorization.orElseThrow(() ->
-                new IllegalStateException("Autorização oficial de uso do veículo em viagens não está configurada"));
+                new AssignmentProviderUnavailableException());
         if (!provider.isAuthorized(driver.getId(), vehicle.getId())) {
             throw new UnauthorizedAccessException();
         }
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Trip> history(UUID vehicleId, UUID driverId, Instant startedFrom, Instant startedTo,
+                              Pageable pageable) {
+        if (startedFrom != null && startedTo != null && startedFrom.isAfter(startedTo)) {
+            throw new InvalidRequestException("O início do período não pode ser posterior ao fim");
+        }
+        return trips.findHistory(vehicleId, driverId, startedFrom, startedTo, pageable);
     }
 
     private boolean isOpenVehicleUniqueConstraintViolation(DataIntegrityViolationException exception) {
