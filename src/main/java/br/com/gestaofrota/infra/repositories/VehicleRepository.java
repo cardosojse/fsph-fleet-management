@@ -29,6 +29,9 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
     @EntityGraph(attributePaths = "sector")
     Optional<Vehicle> findById(UUID id);
 
+    @EntityGraph(attributePaths = "sector")
+    List<Vehicle> findByActiveTrueAndInMaintenanceFalseOrderByPlateAsc();
+
     boolean existsByPlateIgnoreCase(String plate);
     boolean existsByPlateIgnoreCaseAndIdNot(String plate, UUID id);
     boolean existsBySectorId(UUID sectorId);

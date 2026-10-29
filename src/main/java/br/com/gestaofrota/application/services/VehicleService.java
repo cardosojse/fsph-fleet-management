@@ -30,6 +30,11 @@ public class VehicleService {
     public List<Vehicle> list() { return vehicles.findAll(Sort.by("plate")); }
 
     @Transactional(readOnly = true)
+    public List<Vehicle> listAvailable() {
+        return vehicles.findByActiveTrueAndInMaintenanceFalseOrderByPlateAsc();
+    }
+
+    @Transactional(readOnly = true)
     public Vehicle find(UUID id) {
         return vehicles.findById(id).orElseThrow(() -> new ResourceNotFoundException("Veículo", id));
     }

@@ -13,6 +13,8 @@ public record VehicleResponse(
         String usageType,
         long currentOdometerKm,
         boolean active,
+        boolean inMaintenance,
+        boolean available,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -26,6 +28,8 @@ public record VehicleResponse(
                 vehicle.getUsageType(),
                 vehicle.getCurrentOdometerKm(),
                 vehicle.isActive(),
+                vehicle.isInMaintenance(),
+                vehicle.isAvailableForAllocation(),
                 vehicle.getCreatedAt(),
                 vehicle.getUpdatedAt()
         );

@@ -34,6 +34,12 @@ public class VehicleController {
         return vehicles.list().stream().map(VehicleResponse::from).toList();
     }
 
+    @GetMapping("/available")
+    @PreAuthorize("hasAuthority('VEHICLES_READ')")
+    public List<VehicleResponse> listAvailable() {
+        return vehicles.listAvailable().stream().map(VehicleResponse::from).toList();
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('VEHICLES_READ')")
     public VehicleResponse find(@PathVariable UUID id) {

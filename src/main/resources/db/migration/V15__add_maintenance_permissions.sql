@@ -1,0 +1,13 @@
+ALTER TABLE role_permissions DROP CONSTRAINT chk_role_permissions_permission;
+ALTER TABLE role_permissions ADD CONSTRAINT chk_role_permissions_permission CHECK (permission IN (
+    'USERS_READ', 'USERS_WRITE', 'SECTORS_READ', 'SECTORS_WRITE',
+    'PERMISSIONS_READ', 'PERMISSIONS_WRITE', 'VEHICLES_READ', 'VEHICLES_WRITE',
+    'DRIVERS_READ', 'DRIVERS_WRITE', 'MAINTENANCES_READ', 'MAINTENANCES_WRITE'
+));
+
+INSERT INTO role_permissions (role, permission) VALUES
+    ('ADMIN', 'MAINTENANCES_READ'),
+    ('ADMIN', 'MAINTENANCES_WRITE'),
+    ('GESTOR_FROTA', 'MAINTENANCES_READ'),
+    ('GESTOR_FROTA', 'MAINTENANCES_WRITE')
+ON CONFLICT (role, permission) DO NOTHING;
