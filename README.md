@@ -17,12 +17,13 @@ O código atual possui cadastros de veículos e motoristas, vínculo entre motor
 e usuário, histórico de CNHs e documentos dos veículos, controle de quilometragem
 e permissões de acesso à frota.
 
-A funcionalidade de viagens (`Route`) está em planejamento. A proposta de
-entidades, relacionamentos, regras, endpoints e migrations está descrita em
-[Arquitetura da frota e proposta de viagens](docs/README-route.md).
+A API de transportes e viagens segue a separação entre solicitação (`Transport`),
+viagem planejada (`Route`) e parada (`RouteStop`) do diagrama de referência.
+Entidades, estados, endpoints, regras de acesso e exemplos de uso estão em
+[Transportes, viagens e paradas](docs/README-route.md).
 
-Esse documento também identifica os conflitos encontrados no código atual e
-separa os componentes existentes das criações propostas para a próxima etapa.
+O documento também apresenta as adaptações ao código existente, as migrations
+criadas e os limites deste incremento.
 
 ## Pré-requisitos
 
@@ -213,8 +214,18 @@ As migrations da base de frota são:
 | `V9` | Cria o histórico de CNHs e garante uma CNH `ACTIVE` por motorista. |
 | `V10` | Acrescenta permissões de veículos e motoristas à matriz de acesso. |
 
-Ainda não existem migrations de viagens. As versões sugeridas no documento de
-arquitetura são propostas e devem ser conferidas antes da implementação.
+As migrations de transportes e viagens são:
+
+| Versão | Alteração |
+| --- | --- |
+| `V11` | Cria solicitações de transporte com setor e solicitante. |
+| `V12` | Cria viagens com veículo, motorista, criador e controle de execução. |
+| `V13` | Cria paradas ordenadas que vinculam viagens e transportes. |
+| `V14` | Acrescenta permissões de transportes e viagens, preservando matrizes personalizadas. |
+
+Os testes de integração usam PostgreSQL isolado via Testcontainers. Com Docker
+disponível e JDK 21 configurado, execute `./mvnw -B verify` ou
+`.\mvnw.cmd -B verify` no Windows.
 
 ## Parar o projeto
 

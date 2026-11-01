@@ -5,6 +5,7 @@ import br.com.gestaofrota.domain.models.Sector;
 import br.com.gestaofrota.infra.repositories.SectorRepository;
 import br.com.gestaofrota.infra.repositories.UserRepository;
 import br.com.gestaofrota.infra.repositories.VehicleRepository;
+import br.com.gestaofrota.infra.repositories.TransportRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,6 +29,9 @@ class SectorServiceTests {
 
     @Mock
     private VehicleRepository vehicleRepository;
+
+    @Mock
+    private TransportRepository transportRepository;
 
     @InjectMocks
     private SectorService sectorService;
@@ -56,6 +60,16 @@ class SectorServiceTests {
         UUID id = UUID.randomUUID();
         when(sectorRepository.findById(id)).thenReturn(Optional.of(new Sector("Financeiro")));
         when(vehicleRepository.existsBySectorId(id)).thenReturn(true);
+
+        assertThrows(ConflictException.class, () -> sectorService.delete(id));
+        verify(sectorRepository, never()).delete(any());
+    }
+
+    @Test
+    void rejectsDeletionWhenSectorHasTransportHistory() {
+        UUID id = UUID.randomUUID();
+        when(sectorRepository.findById(id)).thenReturn(Optional.of(new Sector("Financeiro")));
+        when(transportRepository.existsBySectorId(id)).thenReturn(true);
 
         assertThrows(ConflictException.class, () -> sectorService.delete(id));
         verify(sectorRepository, never()).delete(any());

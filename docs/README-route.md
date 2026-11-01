@@ -1,214 +1,281 @@
-# Arquitetura da frota e proposta de viagens (`Route`)
+# Transportes, viagens e paradas
 
-Este documento registra a análise do código existente e a proposta para a
-funcionalidade de viagens. A entidade `Route`, sua API e suas migrations ainda
-não estão implementadas.
+A API implementa o fluxo do diagrama
+[Transport Management](https://mermaid.ai/view/74e0ce55-ef7a-4eda-aaa1-58e5fce666c7):
+uma solicitação é registrada em `Transport`, a viagem é planejada em `Route` e
+`RouteStop` organiza o atendimento das solicitações durante a viagem.
 
-## 1. Alterações desta documentação
+## 1. Entidades e relacionamentos
 
-- Atualização do `README.md` principal com o estado atual da frota e as migrations
-  de veículos, documentos, motoristas e CNHs.
-- Correção da URL local documentada para `http://localhost:8081`, conforme
-  `server.port` em `application.properties`.
-- Criação deste arquivo com os relacionamentos propostos para viagens, regras de
-  negócio, componentes a criar e conflitos encontrados na análise.
+```mermaid
+erDiagram
+    SECTORS ||--o{ TRANSPORTS : solicita
+    USERS ||--o{ TRANSPORTS : registra
+    USERS ||--o{ ROUTES : cria
+    USERS ||--o| DRIVERS : possui
+    DRIVERS ||--o{ ROUTES : conduz
+    VEHICLES ||--o{ ROUTES : utiliza
+    ROUTES ||--o{ ROUTE_STOPS : contem
+    TRANSPORTS ||--o{ ROUTE_STOPS : atende
+```
 
-Esta atualização modifica documentação. Os componentes Java e as migrations
-descritos como existentes já estavam no projeto.
+`Driver` e a tabela `drivers` existentes representam o conceito
+`DRIVER_PROFILES` do diagrama. A chave `Route.driver_id` referencia `drivers.id`;
+o identificador de autenticação corresponde a `users.id`.
 
-## 2. Organização atual
+Uma viagem pode atender vários transportes. Um transporte também pode aparecer
+em várias paradas, inclusive de viagens diferentes, preservando as cardinalidades
+do desenho. Cada parada referencia exatamente uma viagem e um transporte.
 
-Os pacotes ficam em `src/main/java/br/com/gestaofrota`:
+### Transport / transports
 
-| Pacote | Responsabilidade |
-| --- | --- |
-| `domain.models` | Entidades JPA e métodos de alteração de estado. |
-| `domain.enums` | Perfis, permissões e estados do domínio. |
-| `domain.exceptions` | Erros de validação, conflito, autorização e recurso não encontrado. |
-| `infra.repositories` | Persistência com Spring Data JPA, consultas, carregamento de associações e bloqueios. |
-| `application.services` | Casos de uso, regras de negócio e transações. |
-| `api.v1.controllers` | Endpoints HTTP, validação de entrada e autorização por permissão. |
-| `api.v1.dtos` | Records de entrada e saída, separados entre requests e responses. |
-| `infra.security` | Autenticação JWT e integração com Spring Security. |
-
-As migrations ficam em `src/main/resources/db/migration`. O Hibernate utiliza
-`ddl-auto=validate`: alterações de estrutura precisam de migration. O projeto
-também configura `open-in-view=false`, exigindo planejamento do carregamento de
-associações utilizadas nos responses.
-
-## 3. Base de frota já existente
-
-| Componente | Comportamento presente no código |
-| --- | --- |
-| `Vehicle` | Setor opcional, placa, modelo, capacidade, tipo de uso, hodômetro, situação cadastral, versão e datas de auditoria. |
-| `Driver` | Vínculo obrigatório e único com `User`, situação cadastral, versão e datas de auditoria. |
-| `VehicleDocument` | Histórico de documentos por veículo e tipo, com emissão, validade e estado `ACTIVE` ou `REPLACED`. |
-| `DriverLicense` | Histórico de CNHs por motorista, com número, categoria, emissão, validade e estado do registro. |
-| Services de frota | Normalização e unicidade de placas, hodômetro sem redução, criação de motoristas para usuários ativos com perfil `MOTORISTA` e substituição de documentos preservando histórico. |
-| Repositories | `@EntityGraph` em leituras principais e `lockById` para veículos e motoristas. |
-| Controllers e DTOs | Cadastros e consultas de frota, documentos e CNHs, com validação e permissões específicas. |
-
-As migrations `V6` a `V10` criam essa base. As versões anteriores cuidam de
-usuários, setores, revogação de tokens e matriz de permissões.
-
-`User` pertence obrigatoriamente a um setor. O setor de um motorista é alcançado
-por `Driver.user.sector`. A criação de um usuário com perfil `MOTORISTA` não cria
-automaticamente o registro `Driver`.
-
-## 4. Modelagem proposta para `Route`
-
-Uma `Route` representa uma viagem individual desde a solicitação até o término,
-com um solicitante, um veículo e um motorista. Nesta proposta, aprovação e
-alocação dos recursos acontecem juntas no agendamento.
-
-| Campo | Relacionamento | Regra |
+| Campo Java | Coluna | Comportamento |
 | --- | --- | --- |
-| `vehicle` | Muitos `Route` para um `Vehicle` | Opcional na solicitação e obrigatório a partir do agendamento. |
-| `driver` | Muitos `Route` para um `Driver` | Opcional na solicitação e obrigatório a partir do agendamento. |
-| `requestedBy` | Muitos `Route` para um `User` | Obrigatório; identificado pela autenticação. |
-| `requestedSector` | Muitos `Route` para um `Sector` | Obrigatório; fixado na criação da solicitação. |
-| `approvedBy` | Muitos `Route` para um `User` | Preenchido pelo servidor ao aprovar e agendar. |
+| `id` | `id` | UUID gerado na criação. |
+| `sector` | `sector_id` | Setor do solicitante, fixado na criação. |
+| `requestedByUser` | `requested_by_user_id` | Usuário autenticado que registra a demanda. |
+| `occurredAt` | `occurred_at` | Instante de referência informado na solicitação. |
+| `serviceType` | `service_type` | Tipo de serviço, até 100 caracteres. |
+| `pickupLocation` | `pickup_location` | Local de coleta ou embarque, até 500 caracteres. |
+| `destination` | `destination` | Destino, até 500 caracteres. |
+| `status` | `status` | `PENDING`, `ASSIGNED`, `COMPLETED`, `CANCELLED`. |
 
-Os vínculos devem usar `@ManyToOne(fetch = FetchType.LAZY)`. `driver_id` referencia
-`drivers.id`, enquanto o usuário autenticado é identificado por `users.id`.
-Esses identificadores não são intercambiáveis.
+O setor e o solicitante são identificados pelo servidor. A mudança posterior do
+setor do usuário não altera o setor já registrado no transporte.
 
-O setor solicitante deve ser independente do setor do veículo e do motorista.
-Persistir seu vínculo na viagem preserva a associação mesmo quando o solicitante
-é transferido para outro setor. Caso seja necessário preservar também o nome
-exato do setor à época, será preciso definir uma estratégia adicional de histórico.
+### Route / routes
 
-Inicialmente, os vínculos podem ser unidirecionais em `Route`. O histórico pode
-ser consultado pelo repository, sem coleções de viagens nas entidades atuais.
-As referências não devem propagar remoção para veículos, motoristas ou usuários.
+| Campo Java | Coluna | Comportamento |
+| --- | --- | --- |
+| `id` | `id` | UUID gerado na criação. |
+| `vehicle` | `vehicle_id` | Veículo obrigatório. |
+| `driver` | `driver_id` | Motorista obrigatório. |
+| `createdByUser` | `created_by_user_id` | Criador identificado pela autenticação. |
+| `status` | `status` | `PLANNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`. |
+| `plannedStartAt` | `planned_start_at` | Início previsto obrigatório. |
+| `realStartAt` | `real_start_at` | Instante registrado pelo servidor ao iniciar. |
+| `realEndAt` | `real_end_at` | Instante registrado pelo servidor ao concluir. |
+| `startMileage` | `start_mileage` | Hodômetro informado no início. |
+| `endMileage` | `end_mileage` | Hodômetro informado na conclusão. |
 
-### Campos adicionais
+O criador da viagem pode ser diferente dos solicitantes atendidos. Setor da
+demanda, local de coleta e destino permanecem nos transportes relacionados.
 
-| Grupo | Campos sugeridos |
-| --- | --- |
-| Identidade e concorrência | `UUID id`, `long version` com `@Version`. |
-| Finalidade | `origin`, `destination`, `purpose`, `notes`. |
-| Planejamento | `Instant plannedDepartureAt`, `plannedReturnAt`. |
-| Execução | `Instant startedAt`, `finishedAt`. |
-| Quilometragem | `Long startOdometerKm`, `endOdometerKm`, ausentes antes da execução. |
-| Controle e auditoria | `RouteStatus status`, `approvedAt`, motivo de rejeição ou cancelamento, `createdAt`, `updatedAt`. |
+### RouteStop / route_stops
 
-A distância percorrida pode ser calculada pela diferença entre os hodômetros.
+| Campo Java | Coluna | Comportamento |
+| --- | --- | --- |
+| `id` | `id` | UUID gerado na criação. |
+| `route` | `route_id` | Viagem obrigatória. |
+| `transport` | `transport_id` | Transporte obrigatório. |
+| `stopSequence` | `stop_sequence` | Número positivo, único dentro da viagem. |
+| `status` | `status` | `PENDING`, `COMPLETED`, `CANCELLED`. |
 
-### Estados e transições
+Uma entidade própria preserva a sequência e o estado do vínculo. Não existe
+unicidade global de `transport_id`. Paradas canceladas permanecem no histórico,
+e suas posições continuam ocupadas; novas paradas usam outra sequência.
+
+### Adaptações técnicas
+
+- Relacionamentos obrigatórios com `@ManyToOne(fetch = LAZY, optional = false)`.
+- Datas com `Instant` e `TIMESTAMP WITH TIME ZONE`.
+- Hodômetros com `Long` e `BIGINT`, compatíveis com o veículo existente.
+- `@Version`, `createdAt` e `updatedAt` para concorrência e auditoria.
+- Chaves estrangeiras preservando os registros relacionados, sem remoção em cascata.
+
+## 2. Estados e regras implementadas
+
+A viagem nasce em `PLANNED`, pode iniciar em `IN_PROGRESS` e terminar em
+`COMPLETED`. O cancelamento da viagem é permitido em `PLANNED`.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> REQUESTED
-    REQUESTED --> SCHEDULED: aprovar e alocar
-    REQUESTED --> REJECTED
-    REQUESTED --> CANCELLED
-    SCHEDULED --> IN_PROGRESS: iniciar
-    SCHEDULED --> CANCELLED
+    [*] --> PLANNED
+    PLANNED --> IN_PROGRESS: iniciar
+    PLANNED --> CANCELLED: cancelar
     IN_PROGRESS --> COMPLETED: concluir
 ```
 
-Veículo e motorista são obrigatórios em `SCHEDULED`, `IN_PROGRESS` e `COMPLETED`.
-As transições devem ser métodos do domínio coordenados pelo service. Uma viagem
-concluída deve preservar seus dados de execução.
+- Transportes nascem em `PENDING`. Ao adicionar uma parada, ficam `ASSIGNED`.
+- Atribuir paradas exige viagem planejada e transporte pendente ou atribuído.
+- A viagem exige pelo menos uma parada pendente para iniciar.
+- Veículo, motorista e usuário do motorista devem estar ativos ao planejar e
+  iniciar. O usuário do motorista deve manter o perfil `MOTORISTA`.
+- Paradas são concluídas em ordem de sequência durante a execução. Paradas
+  canceladas são ignoradas nessa ordem.
+- A viagem só termina depois de todas as paradas concluídas ou canceladas.
+- O transporte fica `ASSIGNED` enquanto existir alguma parada pendente, inclusive
+  em outra viagem. Sem pendências, fica `COMPLETED` se houver uma parada concluída;
+  caso todas estejam canceladas, volta para `PENDING`.
+- Cancelar uma viagem planejada cancela suas paradas pendentes e recalcula a
+  situação dos transportes, permitindo remanejamento sem apagar o histórico.
+- Um transporte só pode ser cancelado diretamente quando está `PENDING`.
+- Gestores cancelam paradas de viagens planejadas; o motorista responsável pode
+  cancelar paradas durante a execução. Registros terminais não são reabertos.
+- Horários reais vêm do servidor. O hodômetro inicial não pode ser inferior ao
+  atual, e o final não pode ser inferior ao inicial nem ao atual do veículo.
+- Início e conclusão atualizam o hodômetro na mesma transação da viagem.
 
-## 5. Regras propostas
+O service bloqueia a viagem e os recursos em ordem consistente. Índices únicos
+parciais reforçam a proibição de duas viagens `IN_PROGRESS` para o mesmo veículo
+ou motorista. Transportes compartilhados são bloqueados ao alterar atribuições.
 
-1. Validar a ordem dos horários previstos e dos horários de execução.
-2. Validar veículo e motorista ativos, usuário do motorista ativo e perfil
-   `MOTORISTA` ao alocar e iniciar a viagem.
-3. Verificar CNH e documentos exigidos, considerando emissão e validade no
-   período previsto; revalidar os documentos no início.
-4. Impedir sobreposição de viagens agendadas ou em execução para o mesmo recurso.
-   Dois intervalos se sobrepõem quando `inicioExistente < novoFim` e
-   `fimExistente > novoInicio`. Intervalos consecutivos são permitidos.
-5. Bloquear veículo e motorista antes da consulta de conflitos e do agendamento,
-   dentro da mesma transação e com ordem consistente de bloqueios.
-6. No início, verificar também ocupação real: uma viagem que ultrapassou o retorno
-   previsto continua ocupando seus recursos enquanto estiver em execução.
-7. Impedir redução do hodômetro e registrar conclusão e quilometragem do veículo
-   atomicamente. Definir o tratamento de ajustes administrativos durante a viagem.
-8. Validar permissão e vínculo com cada viagem: solicitante acessa suas demandas,
-   motorista acessa e executa suas viagens e gestor administra o escopo autorizado.
-9. Preservar histórico ao desativar recursos e impedir exclusão de setores que
-   ainda estejam referenciados por viagens.
+## 3. Componentes criados e alterações de integração
 
-## 6. Componentes a criar
-
-Todos os itens desta seção são propostas para uma implementação futura.
-
-| Componente | Responsabilidade proposta |
+| Camada | Componentes |
 | --- | --- |
-| `domain.models.Route` | Dados da viagem, versão, relacionamentos e transições válidas. |
-| `domain.enums.RouteStatus` | Estados do ciclo de vida da viagem. |
-| `infra.repositories.RouteRepository` | Filtros paginados, consultas de agenda, controle do escopo de leitura e bloqueio para transições. |
-| `application.services.RouteService` | Solicitar, agendar, iniciar, concluir, cancelar e rejeitar viagens. |
-| `api.v1.controllers.RouteController` | API em `/api/v1/routes`, com operações explícitas por transição. |
-| DTOs de request | `CreateRouteRequest`, `ScheduleRouteRequest`, `StartRouteRequest`, `CompleteRouteRequest` e dados de cancelamento ou rejeição. |
-| DTO de response | `RouteResponse` com identificadores, resumos dos recursos, estado, horários e quilometragem. |
+| Entidades | `Transport`, `Route`, `RouteStop` em `domain.models`. |
+| Enums | `TransportStatus`, `RouteStatus`, `RouteStopStatus`. |
+| Repositories | `TransportRepository`, `RouteRepository`, `RouteStopRepository`. |
+| Services | `TransportService`, `RouteService` e regras compartilhadas de acesso em `TravelAccess`. |
+| Controllers | `TransportController` e `RouteController`, com endpoints de paradas sob a viagem. |
+| Requests | `CreateTransportRequest`, `CreateRouteRequest`, `AddRouteStopRequest`, `StartRouteRequest`, `CompleteRouteRequest`. |
+| Responses | `TransportResponse`, `RouteResponse`, `RouteStopResponse` e `PageResponse`. |
 
-Exemplos de endpoints propostos: `POST /api/v1/routes`, `GET /api/v1/routes` e
-`POST /api/v1/routes/{id}/schedule`, `/start`, `/complete`, `/cancel` e `/reject`.
+As conversões para DTO ocorrem dentro da transação, compatíveis com
+`open-in-view=false`. Responses de paradas incluem dados do serviço, coleta e
+destino para execução; usuários e senhas não são serializados.
 
-O solicitante e o aprovador devem vir da autenticação. Os responses precisam de
-carregamento planejado por `@EntityGraph`, projeções ou conversão dentro da
-transação, sem serializar entidades relacionadas diretamente.
+`Vehicle.advanceOdometer` centraliza o avanço de quilometragem da execução.
+`SectorService.delete` passa a considerar transportes vinculados ao setor.
+O handler de erros traduz falhas de concorrência para HTTP 409.
 
-### Permissões e migrations propostas
+## 4. API
 
-Acrescentar `ROUTES_READ`, `ROUTES_REQUEST`, `ROUTES_MANAGE` e `ROUTES_EXECUTE`
-ao enum `Permission` e à restrição SQL de permissões. A concessão inicial deve
-respeitar a matriz configurada para cada perfil e as regras de acesso por viagem.
+Todos os endpoints exigem autenticação Bearer. Os identificadores de solicitante,
+setor da demanda e criador da viagem são definidos pelo servidor.
 
-Considerando que a versão atual termina em `V10`, a sugestão é:
+| Método | Endpoint | Operação |
+| --- | --- | --- |
+| POST | `/api/v1/transports` | Criar solicitação. |
+| GET | `/api/v1/transports` | Listar com filtros `status`, `sectorId`, `page` e `size`. |
+| GET | `/api/v1/transports/{id}` | Consultar solicitação. |
+| POST | `/api/v1/transports/{id}/cancel` | Cancelar solicitação pendente. |
+| POST | `/api/v1/routes` | Criar viagem planejada. |
+| GET | `/api/v1/routes` | Listar com filtros `status`, `vehicleId`, `driverId`, `page` e `size`. |
+| GET | `/api/v1/routes/{id}` | Consultar viagem. |
+| GET | `/api/v1/routes/{routeId}/stops` | Listar paradas em ordem. |
+| GET | `/api/v1/routes/{routeId}/stops/{stopId}` | Consultar uma parada da viagem. |
+| POST | `/api/v1/routes/{routeId}/stops` | Adicionar parada. |
+| POST | `/api/v1/routes/{routeId}/start` | Iniciar viagem. |
+| POST | `/api/v1/routes/{routeId}/complete` | Concluir viagem. |
+| POST | `/api/v1/routes/{routeId}/cancel` | Cancelar viagem planejada. |
+| POST | `/api/v1/routes/{routeId}/stops/{stopId}/complete` | Concluir a próxima parada pendente. |
+| POST | `/api/v1/routes/{routeId}/stops/{stopId}/cancel` | Cancelar parada pendente. |
 
-- `V11__create_routes.sql`: tabela, chaves estrangeiras, índices e restrições de
-  estado, horários, hodômetros e campos obrigatórios por estado.
-- `V12__add_route_permissions.sql`: ampliação da restrição SQL e concessão das
-  permissões de viagens conforme a política definida.
+Criações retornam HTTP 201 com `Location`. Demais operações retornam HTTP 200.
+Erros de entrada retornam 400; acesso negado, 403; recurso ausente ou parada de
+outra viagem, 404; estado inválido ou conflito de dados, 409.
 
-As versões precisam ser verificadas antes da implementação. Migrations já
-aplicadas devem ser preservadas. Índices únicos parciais podem reforçar a regra
-de uma única viagem `IN_PROGRESS` por veículo e por motorista; a agenda futura
-também exige a verificação transacional de intervalos.
+As listagens de transportes e viagens retornam `content`, `page`, `size`,
+`totalElements` e `totalPages`. A paginação começa em zero, usa 20 itens por
+padrão e permite de 1 a 100 itens por página.
 
-## 7. Conflitos identificados no código atual
+### Exemplos de corpos JSON
 
-| Ponto | Impacto e encaminhamento |
+Criar transporte:
+
+```json
+{
+  "occurredAt": "2026-11-02T11:00:00Z",
+  "serviceType": "Coleta",
+  "pickupLocation": "Unidade A",
+  "destination": "Unidade B"
+}
+```
+
+Criar viagem:
+
+```json
+{
+  "vehicleId": "<UUID do veículo>",
+  "driverId": "<UUID do cadastro Driver>",
+  "plannedStartAt": "2026-11-02T11:00:00Z"
+}
+```
+
+Adicionar parada:
+
+```json
+{ "transportId": "<UUID do transporte>", "stopSequence": 1 }
+```
+
+Iniciar e concluir a viagem, respectivamente:
+
+```json
+{ "startMileage": 2500 }
+```
+
+```json
+{ "endMileage": 2540 }
+```
+
+As operações de cancelamento e conclusão de parada não exigem corpo JSON.
+
+## 5. Permissões e escopo de acesso
+
+| Permissão | Finalidade |
 | --- | --- |
-| `VehicleStatus` e `DriverStatus` sem persistência | Não representam disponibilidade efetiva. `AVAIBLE` e `UNAVAIBLE` também precisam de correção de grafia antes de consolidar um contrato. |
-| `UpdateVehicleStatus` sem operação associada | A presença do DTO não significa que exista atualização de situação operacional. |
-| `is_active` e ocupação | Separar situação cadastral de ocupação. `IN_ROUTE` pode ser derivado das viagens em execução; disponibilidade futura depende do período. |
-| `@Version` em veículo e motorista | Inserir viagens sem alterar os recursos não impede duas reservas concorrentes; coordenar bloqueios e consultas. |
-| Desativações e mudanças de perfil | Os services atuais não consultam viagens. Impedir inconsistências ou exigir remanejamento antes da alteração. |
-| Atualização cadastral do hodômetro | `VehicleService.update` já altera a quilometragem; coordenar essa operação com início e conclusão de viagens. |
-| Documento `ACTIVE` vencido | `ACTIVE` identifica a versão atual do registro. Verificar datas para determinar sua validade na viagem. |
-| Categoria da CNH e tipo de veículo | Os textos atuais não estabelecem uma regra suficiente de compatibilidade; definir os dados e a política necessários. |
-| Filtros em `DriverController` | `find/{status}`, `find/{role}` e `find/{sector}` têm o mesmo formato de URL. Há também divergência entre `{status}` e o parâmetro `active`. Preferir filtros por query parameters e UUID de setor. |
-| Retorno de `List<Driver>` nos filtros | Pode causar falhas de carregamento ou exposição de dados internos de `User`, inclusive o hash da senha se serializado. Utilizar DTOs. |
-| Exclusão de setor | `SectorService.delete` verifica usuários e veículos; deverá verificar viagens ao introduzir `requestedSector`. |
-| Tratamento de concorrência | O handler atual cobre conflitos de integridade, mas não trata explicitamente falhas de bloqueio otimista; definir respostas adequadas para operações concorrentes. |
+| `TRANSPORTS_READ` | Consultar as próprias solicitações. |
+| `TRANSPORTS_REQUEST` | Criar demandas e cancelar as próprias demandas pendentes. |
+| `TRANSPORTS_MANAGE` | Consultar e administrar demandas de todos os solicitantes. |
+| `ROUTES_READ` | Consultar viagens atribuídas ao motorista autenticado. |
+| `ROUTES_MANAGE` | Consultar todas as viagens, criar viagens e organizar suas paradas. |
+| `ROUTES_EXECUTE` | Iniciar e concluir viagens atribuídas e registrar suas paradas. |
 
-## 8. Decisões de negócio pendentes
+`ADMIN` possui todas as permissões e pode executar qualquer viagem. O gestor
+administra viagens e transportes globalmente neste incremento; o motorista executa
+somente as suas viagens. Funcionários acompanham a própria demanda pelo recurso
+de transporte, sem acesso aos dados de outros solicitantes em viagens compartilhadas.
 
-- Aprovação e alocação juntas ou aprovação em uma etapa anterior ao agendamento.
-- Escopo de atuação dos gestores por setor e critérios de cancelamento.
-- Documentos obrigatórios e regra de compatibilidade da CNH com o veículo.
-- Significado da capacidade do veículo e eventual controle de passageiros.
-- Representação de manutenção e outros bloqueios operacionais.
-- Fuso de negócio e fonte de horário para validar documentos e execução.
-- Necessidade de agrupar solicitações ou trocar motorista e veículo na mesma viagem.
+A V14 acrescenta permissões a ADMIN e estende as matrizes padrão de
+`EMPLOYEE`, `GESTOR_FROTA` e `MOTORISTA`. Matrizes previamente personalizadas
+permanecem preservadas e precisam de concessão explícita pela API de permissões.
 
-## 9. Validação prevista
+## 6. Migrations Flyway
 
-A base atual possui testes de integração com PostgreSQL/Testcontainers em
-`FleetFoundationIntegrationTests` e testes de autorização em
-`FleetControllerAuthorizationTests`.
+| Migration criada | Conteúdo |
+| --- | --- |
+| `V11__create_transports.sql` | Solicitações, estados, chaves obrigatórias e índices. |
+| `V12__create_routes.sql` | Viagens, estados, restrições de execução e unicidade de recursos em uso. |
+| `V13__create_route_stops.sql` | Paradas, estados, sequência positiva e unicidade por viagem. |
+| `V14__add_transport_and_route_permissions.sql` | Restrição SQL e matriz inicial de permissões. |
 
-A implementação de viagens deve cobrir persistência e migrations, transições
-inválidas, agendamento concorrente, viagens consecutivas, atraso no retorno,
-documentos vencidos, desativação de recursos comprometidos, atualização atômica
-do hodômetro e acesso a viagens de outro usuário.
+As migrations V1 a V10 permanecem preservadas. O Flyway aplica as novas versões
+automaticamente na inicialização; o Hibernate valida o mapeamento.
 
-Nesta atualização de documentação, não foram executados build, testes ou
-migrations. Os comportamentos e conflitos descritos resultam de análise estática.
+## 7. Testes e verificação
+
+`TransportRouteIntegrationTests` cobre API HTTP, persistência, cardinalidades,
+sequência, estados, remanejamento, atualização do hodômetro, autorização,
+paginação, constraints e início concorrente compartilhando veículo ou motorista.
+Os testes existentes de permissões, contexto, OpenAPI e setores acompanham a integração.
+
+Os testes de integração utilizam PostgreSQL isolado via Testcontainers e exigem
+Docker disponível. Com JDK 21 configurado, execute:
+
+```powershell
+.\mvnw.cmd -B verify
+```
+
+Em Linux ou macOS:
+
+```bash
+./mvnw -B verify
+```
+
+## 8. Limites deste incremento
+
+O desenho contém apenas início previsto. O planejamento permite viagens futuras
+com os mesmos recursos; a exclusividade é garantida durante a execução. Bloquear
+sobreposição de reservas futuras exige definir duração ou retorno previsto.
+
+Ocorrências, manutenções, cartões e histórico de leituras do hodômetro permanecem
+módulos futuros. As situações operacionais dos cadastros, a obrigatoriedade do
+setor do veículo e os perfis de acesso ainda apresentam as diferenças já
+identificadas em relação ao diagrama.
+
+CNHs e documentos continuam com seus cadastros e histórico existentes. A política
+de bloqueio da viagem por validade, categoria ou tipo de documento precisa ser
+definida antes da integração. Alterações cadastrais e desativações mantêm seus
+contratos atuais; o fluxo de viagens revalida os recursos no planejamento e início.

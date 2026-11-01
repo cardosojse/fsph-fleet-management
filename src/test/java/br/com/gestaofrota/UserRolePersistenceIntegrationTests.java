@@ -74,8 +74,12 @@ class UserRolePersistenceIntegrationTests extends PostgresIntegrationTest {
             if (role != UserRole.ADMIN) {
                 Set<Permission> expected = switch (role) {
                     case GESTOR_FROTA -> Set.of(Permission.SECTORS_READ, Permission.VEHICLES_READ,
-                            Permission.VEHICLES_WRITE, Permission.DRIVERS_READ, Permission.DRIVERS_WRITE);
-                    case MOTORISTA -> Set.of(Permission.SECTORS_READ, Permission.VEHICLES_READ);
+                            Permission.VEHICLES_WRITE, Permission.DRIVERS_READ, Permission.DRIVERS_WRITE,
+                            Permission.TRANSPORTS_READ, Permission.TRANSPORTS_REQUEST, Permission.TRANSPORTS_MANAGE,
+                            Permission.ROUTES_READ, Permission.ROUTES_MANAGE);
+                    case MOTORISTA -> Set.of(Permission.SECTORS_READ, Permission.VEHICLES_READ,
+                            Permission.ROUTES_READ, Permission.ROUTES_EXECUTE);
+                    case EMPLOYEE -> Set.of(Permission.SECTORS_READ, Permission.TRANSPORTS_READ, Permission.TRANSPORTS_REQUEST);
                     default -> Set.of(Permission.SECTORS_READ);
                 };
                 assertThat(rolePermissionService.find(role)).isEqualTo(expected);

@@ -2,6 +2,7 @@ package br.com.gestaofrota.domain.models;
 
 
 import br.com.gestaofrota.domain.enums.VehicleStatus;
+import br.com.gestaofrota.domain.exceptions.ConflictException;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -109,6 +110,13 @@ public class Vehicle {
         this.capacity = capacity;
         this.usageType = usageType;
         this.currentOdometerKm = currentOdometerKm;
+    }
+
+    public void advanceOdometer(long mileage) {
+        if (mileage < currentOdometerKm) {
+            throw new ConflictException("A quilometragem não pode ser menor que a atual");
+        }
+        currentOdometerKm = mileage;
     }
 
     public void deactivate() {

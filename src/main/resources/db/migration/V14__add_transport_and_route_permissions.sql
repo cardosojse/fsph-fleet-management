@@ -1,0 +1,31 @@
+ALTER TABLE role_permissions DROP CONSTRAINT chk_role_permissions_permission;
+ALTER TABLE role_permissions ADD CONSTRAINT chk_role_permissions_permission CHECK (permission IN (
+    'USERS_READ', 'USERS_WRITE', 'SECTORS_READ', 'SECTORS_WRITE',
+    'PERMISSIONS_READ', 'PERMISSIONS_WRITE', 'VEHICLES_READ', 'VEHICLES_WRITE',
+    'DRIVERS_READ', 'DRIVERS_WRITE', 'TRANSPORTS_READ', 'TRANSPORTS_REQUEST',
+    'TRANSPORTS_MANAGE', 'ROUTES_READ', 'ROUTES_MANAGE', 'ROUTES_EXECUTE'
+));
+
+-- Preserve customized permission matrices. Only extend the existing default sets.
+WITH default_roles AS (
+    SELECT role FROM role_permissions GROUP BY role
+    HAVING (role = 'EMPLOYEE' AND count(*) = 1
+            AND bool_and(permission IN ('SECTORS_READ')))
+        OR (role = 'MOTORISTA' AND count(*) = 2
+            AND bool_and(permission IN ('SECTORS_READ', 'VEHICLES_READ')))
+        OR (role = 'GESTOR_FROTA' AND count(*) = 5
+            AND bool_and(permission IN ('SECTORS_READ', 'VEHICLES_READ', 'VEHICLES_WRITE',
+                                         'DRIVERS_READ', 'DRIVERS_WRITE')))
+)
+INSERT INTO role_permissions (role, permission)
+SELECT grants.role, grants.permission FROM (VALUES
+    ('ADMIN', 'TRANSPORTS_READ'), ('ADMIN', 'TRANSPORTS_REQUEST'),
+    ('ADMIN', 'TRANSPORTS_MANAGE'), ('ADMIN', 'ROUTES_READ'),
+    ('ADMIN', 'ROUTES_MANAGE'), ('ADMIN', 'ROUTES_EXECUTE'),
+    ('GESTOR_FROTA', 'TRANSPORTS_READ'), ('GESTOR_FROTA', 'TRANSPORTS_REQUEST'),
+    ('GESTOR_FROTA', 'TRANSPORTS_MANAGE'), ('GESTOR_FROTA', 'ROUTES_READ'),
+    ('GESTOR_FROTA', 'ROUTES_MANAGE'),
+    ('EMPLOYEE', 'TRANSPORTS_READ'), ('EMPLOYEE', 'TRANSPORTS_REQUEST'),
+    ('MOTORISTA', 'ROUTES_READ'), ('MOTORISTA', 'ROUTES_EXECUTE')
+) AS grants(role, permission)
+WHERE grants.role = 'ADMIN' OR grants.role IN (SELECT role FROM default_roles);

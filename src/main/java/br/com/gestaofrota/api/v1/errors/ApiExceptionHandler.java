@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -46,6 +47,15 @@ public class ApiExceptionHandler {
         );
         problem.setTitle(exception.getTitle());
         problem.setProperty("code", exception.getCode());
+        return problem;
+    }
+
+    @ExceptionHandler(ConcurrencyFailureException.class)
+    ProblemDetail handleConcurrencyFailure() {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "Os dados foram alterados por outra operação. Atualize e tente novamente.");
+        problem.setTitle("Conflito de concorrência");
+        problem.setProperty("code", "CONCURRENT_UPDATE");
         return problem;
     }
 
