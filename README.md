@@ -25,6 +25,9 @@ Entidades, estados, endpoints, regras de acesso e exemplos de uso estão em
 O documento também apresenta as adaptações ao código existente, as migrations
 criadas e os limites deste incremento.
 
+O planejamento inclui duração e retorno previsto, com bloqueio de reservas
+sobrepostas de veículo ou motorista e alteração de agenda de viagens planejadas.
+
 ## Pré-requisitos
 
 Antes de executar o projeto, verifique se estão instalados:
@@ -222,6 +225,7 @@ As migrations de transportes e viagens são:
 | `V12` | Cria viagens com veículo, motorista, criador e controle de execução. |
 | `V13` | Cria paradas ordenadas que vinculam viagens e transportes. |
 | `V14` | Acrescenta permissões de transportes e viagens, preservando matrizes personalizadas. |
+| `V15` | Acrescenta duração e retorno previsto às viagens, com validações e índices de reserva. |
 
 Os testes de integração usam PostgreSQL isolado via Testcontainers. Com Docker
 disponível e JDK 21 configurado, execute `./mvnw -B verify` ou

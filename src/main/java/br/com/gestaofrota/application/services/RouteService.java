@@ -39,13 +39,32 @@ public class RouteService {
     @Transactional
     public RouteResponse create(AuthenticatedUser actor, CreateRouteRequest request) {
         TravelAccess.require(actor, Permission.ROUTES_MANAGE);
+        RouteSchedule schedule = RouteSchedule.resolve(request.plannedStartAt(),
+                request.plannedDurationMinutes(), request.plannedReturnAt());
         Vehicle vehicle = lockVehicle(request.vehicleId());
         Driver driver = lockDriver(request.driverId());
         requireActiveResources(vehicle, driver);
         User creator = users.findById(actor.id())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário", actor.id()));
         if (!creator.isActive()) throw new ConflictException("Criador da viagem inativo");
-        return RouteResponse.from(routes.saveAndFlush(new Route(vehicle, driver, creator, request.plannedStartAt())));
+        requireAvailability(vehicle.getId(), driver.getId(), schedule, null, Instant.now());
+        return RouteResponse.from(routes.saveAndFlush(new Route(vehicle, driver, creator, schedule)));
+    }
+
+    @Transactional
+    public RouteResponse reschedule(AuthenticatedUser actor, UUID routeId, UpdateRouteScheduleRequest request) {
+        TravelAccess.require(actor, Permission.ROUTES_MANAGE);
+        RouteSchedule schedule = RouteSchedule.resolve(request.plannedStartAt(),
+                request.plannedDurationMinutes(), request.plannedReturnAt());
+        Route route = lockRoute(routeId);
+        route.requirePlanned();
+        Vehicle vehicle = lockVehicle(route.getVehicle().getId());
+        Driver driver = lockDriver(route.getDriver().getId());
+        requireActiveResources(vehicle, driver);
+        requireAvailability(vehicle.getId(), driver.getId(), schedule, routeId, Instant.now());
+        route.reschedule(schedule);
+        routes.flush();
+        return RouteResponse.from(route);
     }
 
     public PageResponse<RouteResponse> list(AuthenticatedUser actor, RouteStatus status,
@@ -112,7 +131,13 @@ public class RouteService {
         if (!stops.existsByRouteIdAndStatus(routeId, RouteStopStatus.PENDING)) {
             throw new ConflictException("A viagem precisa de uma parada pendente para iniciar");
         }
-        route.start(mileage, Instant.now());
+        if (route.getPlannedDurationMinutes() == null || route.getPlannedReturnAt() == null) {
+            throw new ConflictException("Atualize a duração ou o retorno previsto da viagem antes de iniciar");
+        }
+        Instant now = Instant.now();
+        RouteSchedule executionWindow = RouteSchedule.resolve(now, route.getPlannedDurationMinutes(), null);
+        requireAvailability(vehicle.getId(), driver.getId(), executionWindow, routeId, now);
+        route.start(mileage, now);
         vehicle.advanceOdometer(mileage);
         routes.flush();
         return RouteResponse.from(route);
@@ -209,6 +234,14 @@ public class RouteService {
         if (!vehicle.isActive() || !driver.isActive() || !driver.getUser().isActive()
                 || driver.getUser().getRole() != UserRole.MOTORISTA) {
             throw new ConflictException("Veículo e motorista devem estar ativos e o usuário deve possuir perfil MOTORISTA");
+        }
+    }
+
+    private void requireAvailability(UUID vehicleId, UUID driverId, RouteSchedule schedule,
+                                     UUID excludedId, Instant now) {
+        if (routes.hasReservationConflict(vehicleId, driverId, schedule.plannedStartAt(),
+                schedule.plannedReturnAt(), excludedId, now)) {
+            throw new ConflictException("Veículo ou motorista possui reserva conflitante ou viagem sem retorno definido");
         }
     }
 

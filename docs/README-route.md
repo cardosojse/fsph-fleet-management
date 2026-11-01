@@ -53,6 +53,8 @@ setor do usuário não altera o setor já registrado no transporte.
 | `createdByUser` | `created_by_user_id` | Criador identificado pela autenticação. |
 | `status` | `status` | `PLANNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`. |
 | `plannedStartAt` | `planned_start_at` | Início previsto obrigatório. |
+| `plannedDurationMinutes` | `planned_duration_minutes` | Duração positiva em minutos inteiros. |
+| `plannedReturnAt` | `planned_return_at` | Retorno previsto, igual ao início mais a duração. |
 | `realStartAt` | `real_start_at` | Instante registrado pelo servidor ao iniciar. |
 | `realEndAt` | `real_end_at` | Instante registrado pelo servidor ao concluir. |
 | `startMileage` | `start_mileage` | Hodômetro informado no início. |
@@ -60,6 +62,15 @@ setor do usuário não altera o setor já registrado no transporte.
 
 O criador da viagem pode ser diferente dos solicitantes atendidos. Setor da
 demanda, local de coleta e destino permanecem nos transportes relacionados.
+
+A criação aceita duração, retorno previsto ou ambos. Quando um deles é omitido,
+o servidor calcula o valor correspondente. Se ambos forem informados, devem ser
+consistentes. Início e retorno precisam diferir por um número inteiro e positivo
+de minutos; ausências, duração inválida e divergências retornam HTTP 400.
+
+Os dois campos são persistidos e retornados nas consultas. Essa extensão ao
+desenho original permite controlar a reserva dos recursos. Para viagens legadas,
+ambos podem estar nulos até a regularização do planejamento descrita na seção 6.
 
 ### RouteStop / route_stops
 
@@ -120,16 +131,44 @@ O service bloqueia a viagem e os recursos em ordem consistente. Índices únicos
 parciais reforçam a proibição de duas viagens `IN_PROGRESS` para o mesmo veículo
 ou motorista. Transportes compartilhados são bloqueados ao alterar atribuições.
 
+### Reserva de veículo e motorista
+
+A criação e a alteração de planejamento rejeitam intervalos sobrepostos de
+viagens `PLANNED` ou `IN_PROGRESS` que compartilhem veículo ou motorista. O
+intervalo inclui o início e exclui o retorno: uma viagem pode começar exatamente
+quando a anterior tem retorno previsto. Viagens canceladas e concluídas liberam
+suas reservas.
+
+A verificação ocorre sob bloqueio dos recursos na mesma transação da gravação,
+impedindo duas reservas concorrentes para o mesmo período. O banco também valida
+a consistência entre início, duração e retorno.
+
+Ao iniciar, o service revalida o intervalo entre o horário real e esse horário
+mais a duração prevista. Assim, um início antecipado ou atrasado pode retornar
+409 quando atingir outra reserva; o gestor deve ajustar o planejamento antes de
+prosseguir. Os horários previstos originais permanecem preservados.
+
+Para uma viagem em execução, a reserva considera o menor início entre previsto
+e real e o maior retorno entre o previsto e o projetado a partir do início real.
+Se esse retorno for ultrapassado e a viagem continuar em andamento, novas
+reservas dos recursos ficam bloqueadas até sua conclusão. Reservas já existentes
+permanecem registradas e têm a ocupação real verificada ao iniciar.
+
+O gestor pode alterar apenas o planejamento temporal de viagens `PLANNED` em
+`PUT /api/v1/routes/{routeId}/schedule`. Um conflito preserva o planejamento
+anterior. A viagem e suas paradas mantêm os mesmos identificadores e vínculos.
+
 ## 3. Componentes criados e alterações de integração
 
 | Camada | Componentes |
 | --- | --- |
 | Entidades | `Transport`, `Route`, `RouteStop` em `domain.models`. |
+| Planejamento | `RouteSchedule` valida e normaliza duração e retorno previsto. |
 | Enums | `TransportStatus`, `RouteStatus`, `RouteStopStatus`. |
 | Repositories | `TransportRepository`, `RouteRepository`, `RouteStopRepository`. |
 | Services | `TransportService`, `RouteService` e regras compartilhadas de acesso em `TravelAccess`. |
 | Controllers | `TransportController` e `RouteController`, com endpoints de paradas sob a viagem. |
-| Requests | `CreateTransportRequest`, `CreateRouteRequest`, `AddRouteStopRequest`, `StartRouteRequest`, `CompleteRouteRequest`. |
+| Requests | `CreateTransportRequest`, `CreateRouteRequest`, `UpdateRouteScheduleRequest`, `AddRouteStopRequest`, `StartRouteRequest`, `CompleteRouteRequest`. |
 | Responses | `TransportResponse`, `RouteResponse`, `RouteStopResponse` e `PageResponse`. |
 
 As conversões para DTO ocorrem dentro da transação, compatíveis com
@@ -154,6 +193,7 @@ setor da demanda e criador da viagem são definidos pelo servidor.
 | POST | `/api/v1/routes` | Criar viagem planejada. |
 | GET | `/api/v1/routes` | Listar com filtros `status`, `vehicleId`, `driverId`, `page` e `size`. |
 | GET | `/api/v1/routes/{id}` | Consultar viagem. |
+| PUT | `/api/v1/routes/{routeId}/schedule` | Alterar início, duração e retorno de viagem planejada; exige `ROUTES_MANAGE`. |
 | GET | `/api/v1/routes/{routeId}/stops` | Listar paradas em ordem. |
 | GET | `/api/v1/routes/{routeId}/stops/{stopId}` | Consultar uma parada da viagem. |
 | POST | `/api/v1/routes/{routeId}/stops` | Adicionar parada. |
@@ -190,9 +230,27 @@ Criar viagem:
 {
   "vehicleId": "<UUID do veículo>",
   "driverId": "<UUID do cadastro Driver>",
-  "plannedStartAt": "2026-11-02T11:00:00Z"
+  "plannedStartAt": "2026-11-02T11:00:00Z",
+  "plannedDurationMinutes": 120,
+  "plannedReturnAt": "2026-11-02T13:00:00Z"
 }
 ```
+
+É possível omitir `plannedDurationMinutes` ou `plannedReturnAt`; pelo menos um
+dos dois é obrigatório. O response sempre inclui ambos para viagens com
+planejamento definido. Clientes que antes enviavam apenas o início precisam
+incluir uma dessas estimativas.
+
+Alterar o planejamento em `PUT /api/v1/routes/{routeId}/schedule`:
+
+```json
+{
+  "plannedStartAt": "2026-11-02T14:00:00Z",
+  "plannedDurationMinutes": 90
+}
+```
+
+Nesse exemplo, o novo retorno será `2026-11-02T15:30:00Z`.
 
 Adicionar parada:
 
@@ -240,15 +298,32 @@ permanecem preservadas e precisam de concessão explícita pela API de permissõ
 | `V12__create_routes.sql` | Viagens, estados, restrições de execução e unicidade de recursos em uso. |
 | `V13__create_route_stops.sql` | Paradas, estados, sequência positiva e unicidade por viagem. |
 | `V14__add_transport_and_route_permissions.sql` | Restrição SQL e matriz inicial de permissões. |
+| `V15__add_route_schedule.sql` | Duração e retorno previsto, consistência do período e índices para reservas ativas. |
 
 As migrations V1 a V10 permanecem preservadas. O Flyway aplica as novas versões
 automaticamente na inicialização; o Hibernate valida o mapeamento.
+
+A V15 acrescenta os campos sem inventar estimativas para viagens já cadastradas
+e sem reescrever migrations aplicadas. Registros legados preservam os dados e
+apresentam duração e retorno nulos. Uma viagem legada `PLANNED` deve receber
+planejamento pelo endpoint de alteração antes de iniciar, ou ser cancelada.
+Viagens legadas em execução podem ser concluídas normalmente.
+
+Enquanto existir uma viagem ativa sem estimativa para um veículo ou motorista,
+novas reservas desses recursos são bloqueadas conservadoramente. Viagens legadas
+concluídas ou canceladas não bloqueiam a agenda. Quando houver várias viagens
+legadas no mesmo recurso, pode ser necessário cancelar ou encerrar as demais
+antes de regularizar o planejamento restante.
 
 ## 7. Testes e verificação
 
 `TransportRouteIntegrationTests` cobre API HTTP, persistência, cardinalidades,
 sequência, estados, remanejamento, atualização do hodômetro, autorização,
 paginação, constraints e início concorrente compartilhando veículo ou motorista.
+Também verifica reservas concorrentes, intervalos consecutivos, alteração
+atômica do planejamento, compatibilidade dos registros legados, antecipações,
+atrasos e ocupação além do retorno. `RouteScheduleTests` cobre normalização e
+entradas inválidas de duração e retorno.
 Os testes existentes de permissões, contexto, OpenAPI e setores acompanham a integração.
 
 Os testes de integração utilizam PostgreSQL isolado via Testcontainers e exigem
@@ -266,9 +341,9 @@ Em Linux ou macOS:
 
 ## 8. Limites deste incremento
 
-O desenho contém apenas início previsto. O planejamento permite viagens futuras
-com os mesmos recursos; a exclusividade é garantida durante a execução. Bloquear
-sobreposição de reservas futuras exige definir duração ou retorno previsto.
+As estimativas controlam a reserva e não garantem a duração real da viagem.
+Uma execução atrasada pode exigir remanejamento das reservas seguintes; o sistema
+mantém essas reservas e impede o uso simultâneo dos recursos no início da execução.
 
 Ocorrências, manutenções, cartões e histórico de leituras do hodômetro permanecem
 módulos futuros. As situações operacionais dos cadastros, a obrigatoriedade do

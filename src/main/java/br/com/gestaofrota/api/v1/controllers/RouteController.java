@@ -37,6 +37,13 @@ public class RouteController {
         return routes.list(actor, status, vehicleId, driverId, page, size);
     }
 
+    @PutMapping("/{routeId}/schedule")
+    @PreAuthorize("hasAuthority('ROUTES_MANAGE')")
+    public RouteResponse reschedule(@AuthenticationPrincipal AuthenticatedUser actor,
+            @PathVariable UUID routeId, @Valid @RequestBody UpdateRouteScheduleRequest request) {
+        return routes.reschedule(actor, routeId, request);
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROUTES_READ', 'ROUTES_MANAGE')")
     public RouteResponse find(@AuthenticationPrincipal AuthenticatedUser actor, @PathVariable UUID id) {

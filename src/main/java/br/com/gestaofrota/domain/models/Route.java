@@ -36,6 +36,12 @@ public class Route {
     @Column(name = "planned_start_at", nullable = false)
     private Instant plannedStartAt;
 
+    @Column(name = "planned_duration_minutes")
+    private Integer plannedDurationMinutes;
+
+    @Column(name = "planned_return_at")
+    private Instant plannedReturnAt;
+
     @Column(name = "real_start_at")
     private Instant realStartAt;
 
@@ -62,11 +68,18 @@ public class Route {
 
     protected Route() {}
 
-    public Route(Vehicle vehicle, Driver driver, User creator, Instant plannedStartAt) {
+    public Route(Vehicle vehicle, Driver driver, User creator, RouteSchedule schedule) {
         this.vehicle = vehicle;
         this.driver = driver;
         this.createdByUser = creator;
-        this.plannedStartAt = plannedStartAt;
+        reschedule(schedule);
+    }
+
+    public void reschedule(RouteSchedule schedule) {
+        requirePlanned();
+        plannedStartAt = schedule.plannedStartAt();
+        plannedDurationMinutes = schedule.plannedDurationMinutes();
+        plannedReturnAt = schedule.plannedReturnAt();
     }
 
     public void requirePlanned() {
@@ -115,6 +128,8 @@ public class Route {
     public User getCreatedByUser() { return createdByUser; }
     public RouteStatus getStatus() { return status; }
     public Instant getPlannedStartAt() { return plannedStartAt; }
+    public Integer getPlannedDurationMinutes() { return plannedDurationMinutes; }
+    public Instant getPlannedReturnAt() { return plannedReturnAt; }
     public Instant getRealStartAt() { return realStartAt; }
     public Instant getRealEndAt() { return realEndAt; }
     public Long getStartMileage() { return startMileage; }
