@@ -1,0 +1,42 @@
+# Create a NEW staging service; do not attach this Blueprint to a shared service.
+services:
+  - type: web
+    name: fsph-fleet-api-staging
+    runtime: docker
+    repo: https://github.com/cardosojse/fsph-fleet-management
+    branch: chore/deploy-render
+    plan: free
+    region: ohio
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: "off"
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: PORT
+        value: "10000"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError"
+      - key: NEON_HOST
+        sync: false
+      - key: NEON_HOST_UNPOOLED
+        sync: false
+      - key: NEON_DATABASE
+        sync: false
+      - key: NEON_USER
+        sync: false
+      - key: NEON_PASSWORD
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: ADMIN_NAME
+        value: Administrador de Homologacao
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MAIL_NOTIFICATIONS_ENABLED
+        value: "false"
