@@ -13,6 +13,23 @@ Sistema de gestão de frotas desenvolvido com:
 - PostgreSQL;
 - Docker e Docker Compose.
 
+## Arquitetura e evolução da frota
+
+O código atual possui cadastros de veículos e motoristas, vínculo entre motorista
+e usuário, histórico de CNHs e documentos dos veículos, controle de quilometragem
+e permissões de acesso à frota.
+
+A API de transportes e viagens segue a separação entre solicitação (`Transport`),
+viagem planejada (`Route`) e parada (`RouteStop`) do diagrama de referência.
+Entidades, estados, endpoints, regras de acesso e exemplos de uso estão em
+[Transportes, viagens e paradas](docs/README-route.md).
+
+O documento também apresenta as adaptações ao código existente, as migrations
+criadas e os limites deste incremento.
+
+O planejamento inclui duração e retorno previsto, com bloqueio de reservas
+sobrepostas de veículo ou motorista e alteração de agenda de viagens planejadas.
+
 ## Pré-requisitos
 
 Antes de executar o projeto, verifique se estão instalados:
@@ -142,7 +159,7 @@ Started GestaoFrotaApplication
 Por padrão, o backend será iniciado em:
 
 ```text
-http://localhost:8080
+http://localhost:8081
 ```
 
 ## Ordem completa de inicialização
@@ -195,6 +212,30 @@ maiúsculas e espaços nas extremidades. Se a base já contiver valores equivale
 migration.
 
 A migration `V5` cria a matriz de permissões por perfil e suas permissões padrão.
+
+As migrations da base de frota são:
+
+| Versão | Alteração |
+| --- | --- |
+| `V6` | Cria veículos, validações de cadastro e índice único de placa normalizada. |
+| `V7` | Cria documentos dos veículos e garante um registro `ACTIVE` por tipo e veículo. |
+| `V8` | Cria motoristas com vínculo único a um usuário. |
+| `V9` | Cria o histórico de CNHs e garante uma CNH `ACTIVE` por motorista. |
+| `V10` | Acrescenta permissões de veículos e motoristas à matriz de acesso. |
+
+As migrations de transportes e viagens são:
+
+| Versão | Alteração |
+| --- | --- |
+| `V11` | Cria solicitações de transporte com setor e solicitante. |
+| `V12` | Cria viagens com veículo, motorista, criador e controle de execução. |
+| `V13` | Cria paradas ordenadas que vinculam viagens e transportes. |
+| `V14` | Acrescenta permissões de transportes e viagens, preservando matrizes personalizadas. |
+| `V15` | Acrescenta duração e retorno previsto às viagens, com validações e índices de reserva. |
+
+Os testes de integração usam PostgreSQL isolado via Testcontainers. Com Docker
+disponível e JDK 21 configurado, execute `./mvnw -B verify` ou
+`.\mvnw.cmd -B verify` no Windows.
 
 ## Parar o projeto
 

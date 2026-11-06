@@ -13,6 +13,8 @@ import br.com.gestaofrota.application.services.PrimeFuelStationService;
 import br.com.gestaofrota.application.services.FuelingService;
 import br.com.gestaofrota.application.services.TripRequestService;
 import br.com.gestaofrota.application.services.NotificationService;
+import br.com.gestaofrota.application.services.RouteService;
+import br.com.gestaofrota.application.services.TransportService;
 import br.com.gestaofrota.infra.repositories.RolePermissionRepository;
 import br.com.gestaofrota.infra.config.startup.AdminInitializer;
 import br.com.gestaofrota.infra.security.services.RevokedTokenService;
@@ -86,6 +88,12 @@ class OpenApiConfigTests {
     private NotificationService notificationService;
 
     @MockitoBean
+    private RouteService routeService;
+
+    @MockitoBean
+    private TransportService transportService;
+
+    @MockitoBean
     private RolePermissionRepository rolePermissionRepository;
 
     @Test
@@ -96,6 +104,9 @@ class OpenApiConfigTests {
                 .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
                 .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"))
                 .andExpect(jsonPath("$.security[0].bearerAuth").isArray())
-                .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.security").isEmpty());
+                .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.security").isEmpty())
+                .andExpect(jsonPath("$.paths['/api/v1/transports'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/routes'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/routes/{routeId}/stops'].post").exists());
     }
 }

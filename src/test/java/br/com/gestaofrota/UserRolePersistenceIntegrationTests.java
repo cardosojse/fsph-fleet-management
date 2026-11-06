@@ -89,12 +89,15 @@ class UserRolePersistenceIntegrationTests extends PostgresIntegrationTest {
                             Permission.TRIP_REQUESTS_WRITE,
                             Permission.TRIP_REQUESTS_MANAGE,
                             Permission.NOTIFICATIONS_READ,
-                            Permission.TRIPS_READ
+                            Permission.TRIPS_READ,
+                            Permission.TRANSPORTS_READ, Permission.TRANSPORTS_REQUEST,
+                            Permission.TRANSPORTS_MANAGE, Permission.ROUTES_READ, Permission.ROUTES_MANAGE
                     );
                     case EMPLOYEE -> Set.of(
                             Permission.SECTORS_READ,
                             Permission.TRIP_REQUESTS_WRITE,
-                            Permission.NOTIFICATIONS_READ
+                            Permission.NOTIFICATIONS_READ,
+                            Permission.TRANSPORTS_READ, Permission.TRANSPORTS_REQUEST
                     );
                     case MOTORISTA -> Set.of(
                             Permission.SECTORS_READ,
@@ -102,7 +105,8 @@ class UserRolePersistenceIntegrationTests extends PostgresIntegrationTest {
                             Permission.FUEL_STATIONS_READ,
                             Permission.FUELINGS_WRITE,
                             Permission.NOTIFICATIONS_READ,
-                            Permission.TRIPS_WRITE
+                            Permission.TRIPS_WRITE,
+                            Permission.ROUTES_READ, Permission.ROUTES_EXECUTE
                     );
                     default -> Set.of(Permission.SECTORS_READ);
                 };

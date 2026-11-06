@@ -155,6 +155,10 @@ public class Vehicle {
         this.inMaintenance = false;
     }
 
+    public void advanceOdometer(long mileage) {
+        updateCurrentOdometerKm(mileage);
+    }
+
     public void deactivate() {
         if (inMaintenance) {
             throw new ConflictException("Veículo em manutenção não pode ser desativado");

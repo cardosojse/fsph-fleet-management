@@ -6,6 +6,10 @@ import br.com.gestaofrota.api.v1.dtos.responses.DriverLicenseResponse;
 import br.com.gestaofrota.api.v1.dtos.responses.DriverResponse;
 import br.com.gestaofrota.application.services.DriverLicenseService;
 import br.com.gestaofrota.application.services.DriverService;
+import br.com.gestaofrota.domain.enums.DriverStatus;
+import br.com.gestaofrota.domain.enums.UserRole;
+import br.com.gestaofrota.domain.models.Driver;
+import br.com.gestaofrota.domain.models.Sector;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -81,4 +85,25 @@ public class DriverController {
 
         return ResponseEntity.created(URI.create("/api/v1/drivers/" + id + "/licenses/" + result.id())).body(result);
     }
+
+    @GetMapping("find/{status}")
+    @PreAuthorize("hasAuthority('DRIVERS_READ')")
+    public List<Driver> findStatus(@PathVariable Boolean active){
+        return drivers.findByActive(active);
+    }
+
+    @GetMapping("find/{role}")
+    @PreAuthorize("hasAuthority('DRIVERS_READ')")
+    public List<Driver> findByRole (@PathVariable UserRole role){
+        return drivers.findByRole(role);
+    }
+
+    @GetMapping("find/{sector}")
+    @PreAuthorize("hasAuthority('DRIVERS_READ')")
+    public List<Driver> findByRole (@PathVariable Sector sector){
+        return drivers.findBySector(sector);
+    }
+
+
+
 }

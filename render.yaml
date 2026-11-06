@@ -4,7 +4,7 @@ services:
     name: fsph-fleet-api-staging
     runtime: docker
     repo: https://github.com/cardosojse/fsph-fleet-management
-    branch: chore/deploy-render
+    branch: chore/preview-integracao-telas
     plan: free
     region: ohio
     dockerfilePath: ./Dockerfile
