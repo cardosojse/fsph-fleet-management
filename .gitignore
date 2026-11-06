@@ -34,3 +34,5 @@ build/
 
 # Variáveis locais e credenciais
 .env
+.env.*
+!.env.example
