@@ -57,11 +57,10 @@ O perfil monta as URLs JDBC e passa as credenciais separadamente. Nunca usar
 hosts/credenciais de produção nesta configuração de homologação.
 
 O CORS existente aceita origens exatas em uma lista separada por vírgulas. Não
-usar `*` nem padrões que incluam todos os previews Vercel. Como a publicação do
-frontend não foi realizada, sua origem pública permanece pendente; ela não foi
-inventada nem inserida em serviço compartilhado.
+usar `*` nem padrões que incluam todos os previews Vercel. A origem configurada
+no novo serviço é `https://fsph-fleet-web-staging.vercel.app`.
 
-## Publicação preparada
+## Publicação em 06/11/2026
 
 `render.yaml` descreve um novo serviço `fsph-fleet-api-staging`, Docker, região
 Ohio, branch `chore/deploy-render`, health check e deploys automáticos desligados.
@@ -73,9 +72,20 @@ Depois de configurar o novo serviço, disparar um deploy manual, aguardar saúde
 confirmar sua URL HTTPS e fornecê-la como `VITE_API_URL` ao frontend. Após obter
 a URL Vercel, cadastrar essa origem exata no novo backend e validar o CORS.
 
-Não foi encontrado acesso autenticado ao Render CLI/API. O acesso automatizado
-ao navegador também estava indisponível. Nenhum serviço Render foi criado ou
-alterado e nenhuma URL pública de backend foi confirmada.
+Após autorização da CLI pelo usuário, foi criado o serviço isolado
+`fsph-fleet-api-staging` (`srv-dbn0cg0u01pc73fpooqg`), plano gratuito, região Ohio,
+Docker/Java 21, health check `/actuator/health` e deploys automáticos desligados.
+Fonte: repositório oficial, branch `chore/deploy-render`, commit `26d2c99`.
+
+- API: <https://fsph-fleet-api-staging.onrender.com>.
+- Frontend: <https://fsph-fleet-web-staging.vercel.app>.
+- O serviço preexistente `fsph-fleet-management` permaneceu intacto.
+- O primeiro deploy passou no smoke público completo. A configuração CORS foi
+  atualizada apenas no novo serviço para a origem Vercel confirmada.
+- O deploy final `dep-dbn0fqp5efls738ov5og` ficou `live`. O smoke HTTP passou
+  novamente usando a origem Vercel definitiva: saúde, CORS permitido/bloqueado,
+  JWT, permissões, persistência, validação e logout. Os **3 testes Playwright**
+  também passaram nas URLs públicas, incluindo autenticação cross-origin real.
 
 ## Neon de homologação criado
 
@@ -89,8 +99,9 @@ A branch expira em **12/11/2026 às 16h, America/Fortaleza**. Para manter uma
 homologação depois dessa data, ajustar a retenção dessa branch ou provisionar
 outro ambiente isolado; não apontar o serviço para produção como substituição.
 
-As credenciais geradas estão somente em arquivos locais ignorados, incluindo
-`.env.staging.local`. Não foram incluídas em commits, exemplos ou logs publicados.
+As credenciais geradas estão em arquivos locais ignorados, incluindo
+`.env.staging.local`, e nas variáveis do novo serviço Render. Não foram incluídas
+em commits, exemplos ou logs publicados.
 Arquivos `.env` preexistentes não foram alterados. Nenhuma tabela, configuração,
 senha ou migration da branch de produção foi modificada.
 
@@ -147,9 +158,8 @@ Criados: `Dockerfile`, `.dockerignore`, `render.yaml`,
 `src/main/resources/application-prod.properties`, `scripts/smoke-deploy.mjs` e este documento.
 Modificados: `.env.example`, `.gitignore` e o link de documentação no `README.md`.
 
-Não houve merge em `main` nem publicação automática. A descrição do PR deve
-distinguir a preparação Render, a validação local com Neon remoto e a publicação
-pública pendente.
+Não houve merge em `main` nem publicação automática. A publicação manual usa
+exclusivamente os serviços de homologação separados e a branch Neon isolada.
 
 Referências verificadas: [Render Blueprint](https://render.com/docs/blueprint-spec),
 [pgJDBC TLS](https://jdbc.postgresql.org/documentation/ssl/),
