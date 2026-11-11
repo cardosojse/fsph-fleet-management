@@ -75,9 +75,10 @@ instância paga elimina essa suspensão, mas implica custo e não foi contratada
 Não foi criado ping periódico para contornar a suspensão. O Neon também pode
 precisar despertar; medições locais não comprovam a latência da conexão remota.
 
-O ambiente anterior documenta expiração do banco de homologação em **12/11/2026
-às 16h, America/Fortaleza**. A retenção deve ser confirmada antes de depender desse
-ambiente; não foi alterada nesta tarefa.
+A API Neon confirmou a expiração da branch isolada de homologação em
+**12/11/2026 às 16h, America/Fortaleza** (`2026-11-12T19:00:00Z`). A retenção
+existente não foi alterada; o ambiente deixará de funcionar após essa exclusão
+programada se o responsável não a estender antes.
 
 ## Validação e rollout
 
@@ -102,13 +103,14 @@ carga nem evidência de melhoria na API remota.
 O navegador passou no fluxo real frontend → API Java 21 → PostgreSQL descartável:
 login `demo@frota.test`, retorno à conta protegida, identidade ADMIN, logout 204 e
 reuso do JWT revogado rejeitado com 401. A senha foi fornecida somente ao processo
-de teste. Nenhum dado foi inserido no banco remoto para essa validação.
+de teste. Essa primeira validação utilizou somente o banco descartável.
 
 Na API pública anterior, três GETs sequenciais de health apresentaram:
 timeout sem resposta em **150,01 s**, depois HTTP 200 em **72,47 s**, e em seguida
-HTTP 200 em **0,42 s**. Isso confirma uma espera inicial relevante, mas, sem os
-logs do serviço, não distingue suspensão Render, despertar Neon ou outro atraso.
-Não se atribui essa demora ao Flyway com base no benchmark local.
+HTTP 200 em **0,42 s**. Os logs consultados posteriormente registraram um cold
+start anterior de **195,104 s** no Spring Boot. O serviço usa o plano Free e o
+tempo de CPU disponível é um fator relevante; não se atribui essa demora ao
+Flyway com base no benchmark local.
 
 Executar `./mvnw -B -ntp verify` com Java 21 e Docker disponível. Os testes novos
 cobrem criação, rotação, idempotência, colisão de conta, reativação e bloqueios de
@@ -116,11 +118,42 @@ perfil/ambiente. O teste de navegador do frontend usa uma senha fornecida ao
 processo, verifica login pela interface, identidade protegida, logout e rejeição
 do JWT revogado; nenhuma resposta da API é simulada nesse cenário.
 
-O rollout do Render depende da confirmação do workspace exigida pelo conector.
-Até essa confirmação, não se deve afirmar que a conta foi ativada no serviço
-público ou que os tempos de deploy remoto melhoraram. O frontend pode ser
-compilado e inspecionado em um deploy sem promoção de domínio, conservando o
-ambiente público anterior até ambos os lados estarem validados.
+### Publicação remota concluída
+
+Em 11/11/2026, o deploy `dep-dbqalccipgvc73a0fm90`, commit `11c33eba`, ficou
+**live** no serviço isolado `fsph-fleet-api-staging`. A branch do serviço foi
+ajustada para esta tarefa; auto-deploy permanece desligado. Apenas as quatro
+variáveis de staging foram atualizadas, preservando as demais configurações.
+O outro serviço Render e os bancos de produção não foram modificados.
+
+| Medida remota | Anterior | Publicado |
+| --- | --- | --- |
+| Deploy, início até live, sem fila | 246,08 s | 241,59 s |
+| Spring Boot, cold start observado | 195,104 s | 163,903 s |
+
+O deploy anterior é `dep-dbn10k5fbbac73boge00`, de 06/11; seu cold start acima
+foi observado em 11/11. As amostras não isolam variação de CPU, cache ou patch
+Java, portanto não demonstram ganho causal de startup. O novo build resolveu
+dependências em **16,913 s** e empacotou em **9,315 s**; esse primeiro build
+precisou criar a camada de cache. Não foi feito outro deploy apenas para medir.
+
+No startup publicado, o Hikari iniciou em **0,507 s** e o Flyway validou as
+**23 migrations em 0,895 s**: schema atualizado, nenhuma migration executada.
+Esses tempos não indicam gargalo principal de conexão ou migração. O Java
+registrado foi 21.0.13; a imagem continua na família Java 21 já utilizada.
+
+A API pública <https://fsph-fleet-api-staging.onrender.com> passou em health 200,
+preflight 200 com a origem exata do frontend, acesso anônimo 401, login 200,
+identidade ADMIN 200, logout 204 e rejeição do JWT revogado 401. O Chromium
+também concluiu o login real pelo endereço público
+<https://fsph-fleet-web-staging.vercel.app/login>, acessou `/conta`, confirmou
+identidade e perfil, saiu e validou a revogação do token: **1 teste passou**.
+A senha aleatória foi cadastrada somente no ambiente do Render e fornecida ao
+processo de teste; a cópia local de acesso é ignorada pelo Git.
+
+Revisões separadas, sem merge automático:
+[backend](https://github.com/cardosojse/fsph-fleet-management/pull/13) e
+[frontend](https://github.com/BarbosaDev01/fsph-fleet-management-web-deploy/pull/1).
 
 Para rollback, republicar o commit anterior no serviço de staging e restaurar
 seu perfil anterior. Não reverter migrations nem apagar banco. A conta criada
