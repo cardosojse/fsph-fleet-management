@@ -157,6 +157,14 @@ identidade e perfil, saiu e validou a revogação do token: **1 teste passou**.
 A senha aleatória foi cadastrada somente no ambiente do Render e fornecida ao
 processo de teste; a cópia local de acesso é ignorada pelo Git.
 
+Ainda em 11/11/2026, a pedido do responsável, a senha de demonstração foi
+simplificada para 14 caracteres somente pelo ambiente, sem reduzir a política
+mínima de 12 caracteres nem alterar o código. O deploy de configuração
+`dep-dbqb3v6c6qcc73fqvjbg`, código `c804cb1` (mesma implementação, documentação
+atualizada), ficou live. A senha anterior retornou 401 e a nova retornou 200;
+identidade demo, perfil ADMIN, logout 204 e revogação JWT 401 foram confirmados.
+O Chromium passou novamente no fluxo completo pela URL pública.
+
 Revisões separadas, sem merge automático:
 [backend](https://github.com/cardosojse/fsph-fleet-management/pull/13) e
 [frontend](https://github.com/BarbosaDev01/fsph-fleet-management-web-deploy/pull/1).
