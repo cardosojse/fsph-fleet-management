@@ -75,10 +75,16 @@ instância paga elimina essa suspensão, mas implica custo e não foi contratada
 Não foi criado ping periódico para contornar a suspensão. O Neon também pode
 precisar despertar; medições locais não comprovam a latência da conexão remota.
 
-A API Neon confirmou a expiração da branch isolada de homologação em
-**12/11/2026 às 16h, America/Fortaleza** (`2026-11-12T19:00:00Z`). A retenção
-existente não foi alterada; o ambiente deixará de funcionar após essa exclusão
-programada se o responsável não a estender antes.
+Em 11/11/2026, a exclusão programada da branch isolada de homologação foi
+removida. A API Neon confirmou `expires_at: null`; a expiração anterior de
+12/11/2026 às 16h, America/Fortaleza, não está mais ativa. Nenhum dado, migration,
+branch de produção ou plano foi alterado nessa operação.
+
+A organização permanece no plano Free, confirmado pela API. Esse plano não tem
+prazo máximo de uso, mas mantém suas cotas de armazenamento, transferência e
+compute. A ausência de exclusão programada não garante disponibilidade ilimitada
+nem elimina suspensão por inatividade ou por esgotamento de cota. Não foram
+contratados recursos pagos. Consultar [limites atuais](https://neon.com/pricing).
 
 ## Validação e rollout
 
