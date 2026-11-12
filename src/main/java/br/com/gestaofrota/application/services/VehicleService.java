@@ -25,13 +25,30 @@ public class VehicleService {
     private final SectorRepository sectors;
     private final DriverRepository drivers;
     private final Optional<VehicleAssignmentQuery> assignments;
+    private final AuditLogService auditLogService;
 
-    public VehicleService(VehicleRepository vehicles, SectorRepository sectors, DriverRepository drivers,
-                          Optional<VehicleAssignmentQuery> assignments) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public VehicleService(
+            VehicleRepository vehicles,
+            SectorRepository sectors,
+            DriverRepository drivers,
+            Optional<VehicleAssignmentQuery> assignments,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) AuditLogService auditLogService
+    ) {
         this.vehicles = vehicles;
         this.sectors = sectors;
         this.drivers = drivers;
         this.assignments = assignments;
+        this.auditLogService = auditLogService;
+    }
+
+    public VehicleService(
+            VehicleRepository vehicles,
+            SectorRepository sectors,
+            DriverRepository drivers,
+            Optional<VehicleAssignmentQuery> assignments
+    ) {
+        this(vehicles, sectors, drivers, assignments, null);
     }
 
     @Transactional(readOnly = true)
@@ -71,7 +88,7 @@ public class VehicleService {
             throw new ConflictException("Já existe um veículo com esta placa");
         }
 
-        return vehicles.save(new Vehicle(
+        Vehicle saved = vehicles.save(new Vehicle(
                 findSector(sectorId),
                 normalizedPlate,
                 model.trim(),
@@ -80,6 +97,16 @@ public class VehicleService {
                 odometerKm
             )
         );
+
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "VEHICLE_CREATED",
+                    "VEHICLE",
+                    saved.getId().toString(),
+                    "Veículo cadastrado: placa " + saved.getPlate() + ", modelo " + saved.getModel()
+            );
+        }
+        return saved;
     }
 
     @Transactional
@@ -101,6 +128,15 @@ public class VehicleService {
         }
 
         vehicle.update(findSector(sectorId), normalizedPlate, model.trim(), capacity, usageType.trim(), odometerKm);
+
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "VEHICLE_UPDATED",
+                    "VEHICLE",
+                    vehicle.getId().toString(),
+                    "Veículo atualizado: placa " + vehicle.getPlate() + ", modelo " + vehicle.getModel()
+            );
+        }
         return vehicle;
     }
 
@@ -108,6 +144,14 @@ public class VehicleService {
     public void deactivate(UUID id) {
         Vehicle vehicle = find(id);
         vehicle.deactivate();
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "VEHICLE_DEACTIVATED",
+                    "VEHICLE",
+                    vehicle.getId().toString(),
+                    "Veículo desativado: placa " + vehicle.getPlate()
+            );
+        }
     }
 
     private Sector findSector(UUID id) {

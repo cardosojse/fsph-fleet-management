@@ -39,14 +39,24 @@ public class MaintenanceService implements MaintenanceAvailabilityGuard {
     private final PreventiveMaintenanceScheduleRepository schedules;
     private final VehicleRepository vehicles;
     private final Clock clock;
+    private final AuditLogService auditLogService;
 
     @Autowired
     public MaintenanceService(
             VehicleMaintenanceRepository maintenances,
             PreventiveMaintenanceScheduleRepository schedules,
+            VehicleRepository vehicles,
+            @Autowired(required = false) AuditLogService auditLogService
+    ) {
+        this(maintenances, schedules, vehicles, Clock.systemDefaultZone(), auditLogService);
+    }
+
+    public MaintenanceService(
+            VehicleMaintenanceRepository maintenances,
+            PreventiveMaintenanceScheduleRepository schedules,
             VehicleRepository vehicles
     ) {
-        this(maintenances, schedules, vehicles, Clock.systemDefaultZone());
+        this(maintenances, schedules, vehicles, Clock.systemDefaultZone(), null);
     }
 
     MaintenanceService(
@@ -55,10 +65,21 @@ public class MaintenanceService implements MaintenanceAvailabilityGuard {
             VehicleRepository vehicles,
             Clock clock
     ) {
+        this(maintenances, schedules, vehicles, clock, null);
+    }
+
+    MaintenanceService(
+            VehicleMaintenanceRepository maintenances,
+            PreventiveMaintenanceScheduleRepository schedules,
+            VehicleRepository vehicles,
+            Clock clock,
+            AuditLogService auditLogService
+    ) {
         this.maintenances = maintenances;
         this.schedules = schedules;
         this.vehicles = vehicles;
         this.clock = Objects.requireNonNull(clock);
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -140,7 +161,16 @@ public class MaintenanceService implements MaintenanceAvailabilityGuard {
             }
 
             try {
-                return maintenances.saveAndFlush(maintenance);
+                VehicleMaintenance saved = maintenances.saveAndFlush(maintenance);
+                if (auditLogService != null) {
+                    auditLogService.recordCurrent(
+                            "MAINTENANCE_STARTED",
+                            "VEHICLE_MAINTENANCE",
+                            saved.getId().toString(),
+                            "Manutenção em andamento iniciada para o veículo placa " + vehicle.getPlate()
+                    );
+                }
+                return saved;
             } catch (DataIntegrityViolationException exception) {
                 if (isInProgressUniqueViolation(exception)) {
                     throw new ConflictException("Veículo já possui manutenção em andamento");
@@ -172,6 +202,14 @@ public class MaintenanceService implements MaintenanceAvailabilityGuard {
         VehicleMaintenance saved = maintenances.saveAndFlush(maintenance);
         if (scheduleId != null) {
             completeLinkedSchedule(scheduleId, saved);
+        }
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "MAINTENANCE_REGISTERED",
+                    "VEHICLE_MAINTENANCE",
+                    saved.getId().toString(),
+                    "Manutenção registrada para o veículo placa " + vehicle.getPlate()
+            );
         }
         return saved;
     }
@@ -208,6 +246,14 @@ public class MaintenanceService implements MaintenanceAvailabilityGuard {
         if (scheduleId != null) {
             completeLinkedSchedule(scheduleId, saved);
         }
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "MAINTENANCE_COMPLETED",
+                    "VEHICLE_MAINTENANCE",
+                    saved.getId().toString(),
+                    "Manutenção concluída para o veículo placa " + vehicle.getPlate()
+            );
+        }
         return saved;
     }
 
@@ -222,7 +268,16 @@ public class MaintenanceService implements MaintenanceAvailabilityGuard {
         if (wasInProgress) {
             vehicle.finishMaintenance();
         }
-        return maintenances.saveAndFlush(maintenance);
+        VehicleMaintenance saved = maintenances.saveAndFlush(maintenance);
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "MAINTENANCE_CANCELED",
+                    "VEHICLE_MAINTENANCE",
+                    saved.getId().toString(),
+                    "Manutenção cancelada para o veículo placa " + vehicle.getPlate()
+            );
+        }
+        return saved;
     }
 
     @Transactional(readOnly = true)

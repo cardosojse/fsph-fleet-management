@@ -89,7 +89,28 @@ class UserRolePersistenceIntegrationTests extends PostgresIntegrationTest {
                             Permission.TRIP_REQUESTS_WRITE,
                             Permission.TRIP_REQUESTS_MANAGE,
                             Permission.NOTIFICATIONS_READ,
-                            Permission.TRIPS_READ
+                            Permission.TRIPS_READ,
+                            Permission.SVO_TEAMS_READ,
+                            Permission.SVO_TEAMS_WRITE,
+                            Permission.SVO_SHIFTS_READ,
+                            Permission.SVO_SHIFTS_WRITE
+                    );
+                    case GESTOR_SVO -> Set.of(
+                            Permission.SECTORS_READ,
+                            Permission.SVO_TEAMS_READ,
+                            Permission.SVO_TEAMS_WRITE,
+                            Permission.SVO_SHIFTS_READ,
+                            Permission.SVO_SHIFTS_WRITE
+                    );
+                    case ATENDENTE_SVO -> Set.of(
+                            Permission.SECTORS_READ,
+                            Permission.SVO_TEAMS_READ,
+                            Permission.SVO_SHIFTS_READ
+                    );
+                    case EQUIPE_COLETA_SVO -> Set.of(
+                            Permission.SECTORS_READ,
+                            Permission.SVO_TEAMS_READ,
+                            Permission.SVO_SHIFTS_READ
                     );
                     case EMPLOYEE -> Set.of(
                             Permission.SECTORS_READ,

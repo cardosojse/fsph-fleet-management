@@ -23,11 +23,23 @@ public class UserService {
     private final UserRepository userRepository;
     private final SectorRepository sectorRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditLogService auditLogService;
 
-    public UserService(UserRepository userRepository, SectorRepository sectorRepository, PasswordEncoder passwordEncoder) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public UserService(
+            UserRepository userRepository,
+            SectorRepository sectorRepository,
+            PasswordEncoder passwordEncoder,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) AuditLogService auditLogService
+    ) {
         this.userRepository = userRepository;
         this.sectorRepository = sectorRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditLogService = auditLogService;
+    }
+
+    public UserService(UserRepository userRepository, SectorRepository sectorRepository, PasswordEncoder passwordEncoder) {
+        this(userRepository, sectorRepository, passwordEncoder, null);
     }
 
     @Transactional(readOnly = true)
@@ -56,7 +68,16 @@ public class UserService {
                 passwordEncoder.encode(password),
                 role
         );
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "USER_CREATED",
+                    "USER",
+                    saved.getId().toString(),
+                    "Usuário cadastrado: " + saved.getName() + " (" + saved.getEmail() + "), perfil " + saved.getRole()
+            );
+        }
+        return saved;
     }
 
     @Transactional
@@ -82,6 +103,15 @@ public class UserService {
         if (password != null && !password.isBlank()) {
             user.changePassword(passwordEncoder.encode(password));
         }
+
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "USER_UPDATED",
+                    "USER",
+                    user.getId().toString(),
+                    "Usuário atualizado: " + user.getName() + " (" + user.getEmail() + "), perfil " + user.getRole() + ", ativo: " + user.isActive()
+            );
+        }
         return user;
     }
 
@@ -89,6 +119,14 @@ public class UserService {
     public void changePassword(UUID id, String newPassword) {
         User user = find(id);
         user.changePassword(passwordEncoder.encode(newPassword));
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "USER_PASSWORD_CHANGED",
+                    "USER",
+                    user.getId().toString(),
+                    "Senha alterada pelo administrador para o usuário " + user.getName()
+            );
+        }
     }
 
     @Transactional
@@ -98,6 +136,14 @@ public class UserService {
             throw new BadCredentialsException("Senha atual incorreta");
         }
         user.changePassword(passwordEncoder.encode(newPassword));
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "USER_PASSWORD_CHANGED",
+                    "USER",
+                    user.getId().toString(),
+                    "Própria senha alterada pelo usuário " + user.getName()
+            );
+        }
     }
 
     @Transactional
@@ -108,6 +154,14 @@ public class UserService {
         }
         ensureAnActiveAdminRemains(user, user.getRole(), false);
         user.deactivate();
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "USER_DEACTIVATED",
+                    "USER",
+                    user.getId().toString(),
+                    "Usuário desativado: " + user.getName() + " (" + user.getEmail() + ")"
+            );
+        }
     }
 
     @Transactional
@@ -117,6 +171,14 @@ public class UserService {
             return;
         }
         user.reactivate();
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "USER_REACTIVATED",
+                    "USER",
+                    user.getId().toString(),
+                    "Usuário reativado: " + user.getName() + " (" + user.getEmail() + ")"
+            );
+        }
     }
 
     private Sector findSector(UUID id) {
