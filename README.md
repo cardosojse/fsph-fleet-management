@@ -247,6 +247,10 @@ Para parar o PostgreSQL, na raiz do projeto, execute:
 docker compose stop postgres
 ```
 
+## Deploy e desempenho
+
+Consulte [a investigação de deploy, medições e login exclusivo de staging](docs/performance-staging.md).
+
 Os dados continuarão salvos no volume do Docker.
 
 Para remover o contêiner, preservando os dados:

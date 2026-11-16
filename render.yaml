@@ -4,7 +4,7 @@ services:
     name: fsph-fleet-api-staging
     runtime: docker
     repo: https://github.com/cardosojse/fsph-fleet-management
-    branch: chore/preview-integracao-telas
+    branch: perf/staging-deploy-login-20261111
     plan: free
     region: ohio
     dockerfilePath: ./Dockerfile
@@ -13,7 +13,13 @@ services:
     healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
-        value: prod
+        value: staging
+      - key: APP_ENVIRONMENT
+        value: staging
+      - key: STAGING_DEMO_ENABLED
+        value: "true"
+      - key: STAGING_DEMO_PASSWORD
+        sync: false
       - key: PORT
         value: "10000"
       - key: JAVA_TOOL_OPTIONS
