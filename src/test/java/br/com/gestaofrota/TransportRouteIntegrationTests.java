@@ -60,6 +60,7 @@ class TransportRouteIntegrationTests extends PostgresIntegrationTest {
 
         assertThat(route.status()).isEqualTo(RouteStatus.PLANNED);
         assertThat(route.createdByUserId()).isEqualTo(f.admin().id());
+        assertThat(route.driverUserId()).isEqualTo(f.driver().id());
         assertThat(first.requestedByUserId()).isEqualTo(employee.id());
         assertThat(first.sectorId()).isEqualTo(employee.sectorId());
         assertThat(f.driver().id()).isNotEqualTo(route.driverId());
