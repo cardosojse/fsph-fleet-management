@@ -93,19 +93,27 @@ class UserRolePersistenceIntegrationTests extends PostgresIntegrationTest {
                             Permission.SVO_TEAMS_READ,
                             Permission.SVO_TEAMS_WRITE,
                             Permission.SVO_SHIFTS_READ,
-                            Permission.SVO_SHIFTS_WRITE
+                            Permission.SVO_SHIFTS_WRITE,
+                            Permission.FUEL_CARDS_READ,
+                            Permission.FUEL_CARDS_WRITE
                     );
                     case GESTOR_SVO -> Set.of(
                             Permission.SECTORS_READ,
                             Permission.SVO_TEAMS_READ,
                             Permission.SVO_TEAMS_WRITE,
                             Permission.SVO_SHIFTS_READ,
-                            Permission.SVO_SHIFTS_WRITE
+                            Permission.SVO_SHIFTS_WRITE,
+                            Permission.SVO_REQUESTS_READ,
+                            Permission.SVO_REQUESTS_WRITE,
+                            Permission.SVO_REQUESTS_MANAGE
                     );
                     case ATENDENTE_SVO -> Set.of(
                             Permission.SECTORS_READ,
                             Permission.SVO_TEAMS_READ,
-                            Permission.SVO_SHIFTS_READ
+                            Permission.SVO_SHIFTS_READ,
+                            Permission.SVO_REQUESTS_READ,
+                            Permission.SVO_REQUESTS_WRITE,
+                            Permission.SVO_REQUESTS_MANAGE
                     );
                     case EQUIPE_COLETA_SVO -> Set.of(
                             Permission.SECTORS_READ,
@@ -115,7 +123,8 @@ class UserRolePersistenceIntegrationTests extends PostgresIntegrationTest {
                     case EMPLOYEE -> Set.of(
                             Permission.SECTORS_READ,
                             Permission.TRIP_REQUESTS_WRITE,
-                            Permission.NOTIFICATIONS_READ
+                            Permission.NOTIFICATIONS_READ,
+                            Permission.SVO_REQUESTS_WRITE
                     );
                     case MOTORISTA -> Set.of(
                             Permission.SECTORS_READ,
