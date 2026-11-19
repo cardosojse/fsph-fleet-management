@@ -79,3 +79,19 @@ de homologação e não substitui o histórico de outro banco que use a `main` o
 As telas candidatas e a atualização de dependências do frontend ficaram fora,
 por escolha do usuário. A existência destes endpoints não transforma os módulos
 demonstrativos do frontend em formulários integrados novos.
+
+## Resultado observado
+
+Commit implantado `913ae68452f67379926ce2bffcd6966a4cc4f85a`, deployment
+`dep-dbvik6ivcj2c73d2a6e0`, status `live` e saúde `UP`. Após o deploy, a leitura
+direta do Neon confirmou 28 migrations até V29 e todos os checksums. A comparação
+por hash preservou as cinco contas e os sete setores; nenhuma permissão antiga
+foi removida. Cartões, solicitações SVO, equipes, plantões, auditoria e histórico
+responderam HTTP 200 com autenticação real.
+
+O frontend `029dd686f3061708e6a5380ace3475b63b926030` foi promovido no deployment
+`dpl_3NqRoHzyte5XKfHxJELAvakyJPC9`, Production/READY. O navegador público validou
+login, nove chamadas cross-origin, lotação, logout e token revogado. Não houve
+gravação de cadastros. Logs Render sem erros na janela `16:59:59Z`–`17:04:20Z`.
+Os commits seguintes nas branches de trabalho documentam a entrega e não mudam
+o SHA implantado nem disparam deploys adicionais.
