@@ -70,9 +70,10 @@ branches desta entrega. Como auto-deploy está desligado, a publicação exige u
 único disparo manual após os testes. Confirmar status `live`, SHA e saúde antes
 de publicar o frontend.
 
-O código anterior é compatível com as tabelas e permissões adicionais; retornar
-ao artefato anterior não desfaz V26–V29. As concessões novas devem ser consideradas
-na decisão operacional de reversão. Este histórico estendido pertence à linha
+Retornar ao artefato anterior não desfaz V26–V29. O binário anterior não conhece
+os novos valores do enum de permissões; uma reversão exige um build compatível
+com o catálogo V29. Não apontar automaticamente o binário antigo para este banco
+nem apagar concessões para contornar essa diferença. Este histórico pertence à linha
 de homologação e não substitui o histórico de outro banco que use a `main` oficial.
 
 As telas candidatas e a atualização de dependências do frontend ficaram fora,
