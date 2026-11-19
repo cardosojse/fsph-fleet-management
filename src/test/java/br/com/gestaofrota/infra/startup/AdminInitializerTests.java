@@ -16,6 +16,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -86,5 +87,25 @@ class AdminInitializerTests {
         verifyNoInteractions(sectorRepository);
         verifyNoInteractions(passwordEncoder);
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void reusesAdministrativeAliasWithoutRenamingOrReassigningExistingAccounts() {
+        AdminProperties properties = new AdminProperties(
+                "Administrador", "admin@exemplo.com", "senha", "Administrativo"
+        );
+        Sector existing = new Sector("Administração");
+        when(sectorRepository.findByNameIgnoreCase("Administrativo")).thenReturn(Optional.empty());
+        when(sectorRepository.findAll()).thenReturn(List.of(new Sector("Lacen"), existing));
+        when(passwordEncoder.encode("senha")).thenReturn("hash");
+
+        new AdminInitializer(userRepository, sectorRepository, passwordEncoder, properties).run(null);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertThat(captor.getValue().getSector()).isSameAs(existing);
+        assertThat(captor.getValue().getRole()).isEqualTo(UserRole.ADMIN);
+        assertThat(existing.getName()).isEqualTo("Administração");
+        verify(sectorRepository, never()).save(any());
     }
 }

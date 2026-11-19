@@ -108,4 +108,57 @@ class UserServiceTests {
 
         assertThrows(ResourceNotFoundException.class, () -> userService.reactivate(id));
     }
+
+    @Test
+    void transfersDriverWithoutChangingRoleOrPassword() {
+        UUID id = UUID.randomUUID();
+        UUID sectorId = UUID.randomUUID();
+        Sector svo = new Sector("Superintendência SVO");
+        User driver = new User(new Sector("Lacen"), "Motorista", "driver@exemplo.com", "hash", UserRole.MOTORISTA);
+        when(userRepository.findById(id)).thenReturn(Optional.of(driver));
+        when(sectorRepository.findById(sectorId)).thenReturn(Optional.of(svo));
+
+        User updated = userService.update(id, sectorId, driver.getName(), driver.getEmail(), null, UserRole.MOTORISTA, true);
+
+        assertSame(svo, updated.getSector());
+        assertEquals(UserRole.MOTORISTA, updated.getRole());
+        assertEquals("hash", updated.getPassword());
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    void changesOnlyRoleKeepingTheSameSector() {
+        UUID id = UUID.randomUUID();
+        UUID sectorId = UUID.randomUUID();
+        Sector hemose = new Sector("Superintendência Hemose");
+        User user = new User(hemose, "Pessoa", "pessoa@exemplo.com", "hash", UserRole.EMPLOYEE);
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(sectorRepository.findById(sectorId)).thenReturn(Optional.of(hemose));
+
+        User updated = userService.update(id, sectorId, user.getName(), user.getEmail(), null, UserRole.GESTOR_FROTA, true);
+
+        assertSame(hemose, updated.getSector());
+        assertEquals(UserRole.GESTOR_FROTA, updated.getRole());
+    }
+
+    @Test
+    void missingSectorRejectsUpdateBeforeChangingAnyUserData() {
+        UUID id = UUID.randomUUID();
+        UUID missingSector = UUID.randomUUID();
+        Sector original = new Sector("Lacen");
+        User user = new User(original, "Pessoa", "pessoa@exemplo.com", "hash", UserRole.EMPLOYEE);
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(sectorRepository.findById(missingSector)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.update(
+                id, missingSector, "Alterado", "alterado@exemplo.com", "outra-senha", UserRole.ADMIN, false));
+
+        assertSame(original, user.getSector());
+        assertEquals(UserRole.EMPLOYEE, user.getRole());
+        assertEquals("Pessoa", user.getName());
+        assertEquals("pessoa@exemplo.com", user.getEmail());
+        assertEquals("hash", user.getPassword());
+        assertTrue(user.isActive());
+        verifyNoInteractions(passwordEncoder);
+    }
 }

@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
+import java.text.Normalizer;
+import java.util.Set;
 
 @Component
 public class AdminInitializer implements ApplicationRunner {
@@ -39,7 +41,7 @@ public class AdminInitializer implements ApplicationRunner {
 
         String sectorName = properties.sectorName().trim();
         Sector administrativeSector = sectorRepository.findByNameIgnoreCase(sectorName)
-                .orElseGet(() -> sectorRepository.save(new Sector(sectorName)));
+                .orElseGet(() -> findOrCreateSector(sectorName));
 
         User administrator = new User(
             administrativeSector,
@@ -50,5 +52,22 @@ public class AdminInitializer implements ApplicationRunner {
         );
 
         userRepository.save(administrator);
+    }
+
+    private Sector findOrCreateSector(String sectorName) {
+        // Keep the original ID when the bootstrap unit uses an existing administrative alias.
+        if (isAdministrative(sectorName)) {
+            return sectorRepository.findAll().stream()
+                    .filter(sector -> isAdministrative(sector.getName()))
+                    .findFirst()
+                    .orElseGet(() -> sectorRepository.save(new Sector(sectorName)));
+        }
+        return sectorRepository.save(new Sector(sectorName));
+    }
+
+    private boolean isAdministrative(String name) {
+        String normalized = Normalizer.normalize(name, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "").trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+        return Set.of("administrativo", "administracao", "setor administrativo").contains(normalized);
     }
 }
