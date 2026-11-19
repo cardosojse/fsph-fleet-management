@@ -31,13 +31,13 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
     @Query(value = "select trip from Trip trip join fetch trip.vehicle join fetch trip.driver " +
             "where (:vehicleId is null or trip.vehicle.id = :vehicleId) " +
             "and (:driverId is null or trip.driver.id = :driverId) " +
-            "and (:startedFrom is null or trip.startedAt >= :startedFrom) " +
-            "and (:startedTo is null or trip.startedAt <= :startedTo)",
+            "and (cast(:startedFrom as timestamp) is null or trip.startedAt >= :startedFrom) " +
+            "and (cast(:startedTo as timestamp) is null or trip.startedAt <= :startedTo)",
             countQuery = "select count(trip) from Trip trip " +
                     "where (:vehicleId is null or trip.vehicle.id = :vehicleId) " +
                     "and (:driverId is null or trip.driver.id = :driverId) " +
-                    "and (:startedFrom is null or trip.startedAt >= :startedFrom) " +
-                    "and (:startedTo is null or trip.startedAt <= :startedTo)")
+                    "and (cast(:startedFrom as timestamp) is null or trip.startedAt >= :startedFrom) " +
+                    "and (cast(:startedTo as timestamp) is null or trip.startedAt <= :startedTo)")
     Page<Trip> findHistory(@Param("vehicleId") UUID vehicleId, @Param("driverId") UUID driverId,
                            @Param("startedFrom") Instant startedFrom, @Param("startedTo") Instant startedTo,
                            Pageable pageable);

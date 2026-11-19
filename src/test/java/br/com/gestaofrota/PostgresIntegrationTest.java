@@ -12,6 +12,10 @@ public abstract class PostgresIntegrationTest {
         POSTGRES.start();
     }
 
+    protected static String jdbcUrl() { return POSTGRES.getJdbcUrl(); }
+    protected static String databaseUsername() { return POSTGRES.getUsername(); }
+    protected static String databasePassword() { return POSTGRES.getPassword(); }
+
     @DynamicPropertySource
     static void postgresProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);

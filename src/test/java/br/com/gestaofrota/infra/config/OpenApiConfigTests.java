@@ -15,6 +15,11 @@ import br.com.gestaofrota.application.services.TripRequestService;
 import br.com.gestaofrota.application.services.NotificationService;
 import br.com.gestaofrota.application.services.RouteService;
 import br.com.gestaofrota.application.services.TransportService;
+import br.com.gestaofrota.application.services.AuditLogService;
+import br.com.gestaofrota.application.services.SvoTeamService;
+import br.com.gestaofrota.application.services.SvoDutyShiftService;
+import br.com.gestaofrota.application.services.FuelCardService;
+import br.com.gestaofrota.application.services.SvoDeathRequestService;
 import br.com.gestaofrota.infra.repositories.RolePermissionRepository;
 import br.com.gestaofrota.infra.config.startup.AdminInitializer;
 import br.com.gestaofrota.infra.security.services.RevokedTokenService;
@@ -92,6 +97,21 @@ class OpenApiConfigTests {
 
     @MockitoBean
     private TransportService transportService;
+
+    @MockitoBean
+    private AuditLogService auditLogService;
+
+    @MockitoBean
+    private SvoTeamService svoTeamService;
+
+    @MockitoBean
+    private SvoDutyShiftService svoDutyShiftService;
+
+    @MockitoBean
+    private FuelCardService fuelCardService;
+
+    @MockitoBean
+    private SvoDeathRequestService svoDeathRequestService;
 
     @MockitoBean
     private RolePermissionRepository rolePermissionRepository;

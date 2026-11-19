@@ -52,6 +52,28 @@ public class TripRequestService {
     private final DriverLicenseRepository driverLicenses;
     private final MaintenanceAvailabilityGuard maintenanceGuard;
     private final NotificationService notifications;
+    private final AuditLogService auditLogService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TripRequestService(
+            TripRequestRepository tripRequests,
+            UserRepository users,
+            VehicleRepository vehicles,
+            DriverRepository drivers,
+            DriverLicenseRepository driverLicenses,
+            MaintenanceAvailabilityGuard maintenanceGuard,
+            NotificationService notifications,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) AuditLogService auditLogService
+    ) {
+        this.tripRequests = tripRequests;
+        this.users = users;
+        this.vehicles = vehicles;
+        this.drivers = drivers;
+        this.driverLicenses = driverLicenses;
+        this.maintenanceGuard = maintenanceGuard;
+        this.notifications = notifications;
+        this.auditLogService = auditLogService;
+    }
 
     public TripRequestService(
             TripRequestRepository tripRequests,
@@ -62,13 +84,7 @@ public class TripRequestService {
             MaintenanceAvailabilityGuard maintenanceGuard,
             NotificationService notifications
     ) {
-        this.tripRequests = tripRequests;
-        this.users = users;
-        this.vehicles = vehicles;
-        this.drivers = drivers;
-        this.driverLicenses = driverLicenses;
-        this.maintenanceGuard = maintenanceGuard;
-        this.notifications = notifications;
+        this(tripRequests, users, vehicles, drivers, driverLicenses, maintenanceGuard, notifications, null);
     }
 
     @Transactional(readOnly = true)
@@ -107,7 +123,7 @@ public class TripRequestService {
                 null
         );
 
-        return tripRequests.save(new TripRequest(
+        TripRequest saved = tripRequests.save(new TripRequest(
                 requester,
                 departureAt,
                 expectedReturnAt,
@@ -117,6 +133,21 @@ public class TripRequestService {
                 passengerCount,
                 requestedVehicle
         ));
+
+        if (auditLogService != null) {
+            auditLogService.record(
+                    requester.getId(),
+                    requester.getName(),
+                    requester.getEmail(),
+                    requester.getRole() != null ? requester.getRole().name() : null,
+                    "TRIP_REQUEST_CREATED",
+                    "TRIP_REQUEST",
+                    saved.getId().toString(),
+                    "Solicitação de viagem criada de '" + origin + "' para '" + destination + "'",
+                    null
+            );
+        }
+        return saved;
     }
 
     @Transactional(readOnly = true)
@@ -186,6 +217,14 @@ public class TripRequestService {
         TripRequest request = lockTripRequest(requestId);
         assertRequesterOwnership(request, requesterUserId);
         request.cancelByRequester(Instant.now());
+        if (auditLogService != null) {
+            auditLogService.recordCurrent(
+                    "TRIP_REQUEST_CANCELED",
+                    "TRIP_REQUEST",
+                    request.getId().toString(),
+                    "Solicitação de viagem #" + request.getId() + " cancelada pelo solicitante"
+            );
+        }
         return request;
     }
 
@@ -251,6 +290,19 @@ public class TripRequestService {
 
         request.approve(decidedBy, preAssignedVehicle, decisionNotes, Instant.now());
         notifications.notifyTripRequestApproved(request);
+        if (auditLogService != null) {
+            auditLogService.record(
+                    decidedBy.getId(),
+                    decidedBy.getName(),
+                    decidedBy.getEmail(),
+                    decidedBy.getRole() != null ? decidedBy.getRole().name() : null,
+                    "TRIP_REQUEST_APPROVED",
+                    "TRIP_REQUEST",
+                    request.getId().toString(),
+                    "Solicitação de viagem #" + request.getId() + " aprovada",
+                    null
+            );
+        }
         return request;
     }
 
@@ -260,6 +312,19 @@ public class TripRequestService {
         User decidedBy = findUser(managerUserId);
         request.reject(decidedBy, rejectionReason, Instant.now());
         notifications.notifyTripRequestRejected(request);
+        if (auditLogService != null) {
+            auditLogService.record(
+                    decidedBy.getId(),
+                    decidedBy.getName(),
+                    decidedBy.getEmail(),
+                    decidedBy.getRole() != null ? decidedBy.getRole().name() : null,
+                    "TRIP_REQUEST_REJECTED",
+                    "TRIP_REQUEST",
+                    request.getId().toString(),
+                    "Solicitação de viagem #" + request.getId() + " rejeitada. Motivo: " + rejectionReason,
+                    null
+            );
+        }
         return request;
     }
 
@@ -289,6 +354,20 @@ public class TripRequestService {
 
         request.schedule(scheduledBy, lockedVehicle, lockedDriver, Instant.now());
         notifications.notifyTripRequestScheduled(request);
+        if (auditLogService != null) {
+            auditLogService.record(
+                    scheduledBy.getId(),
+                    scheduledBy.getName(),
+                    scheduledBy.getEmail(),
+                    scheduledBy.getRole() != null ? scheduledBy.getRole().name() : null,
+                    "TRIP_REQUEST_SCHEDULED",
+                    "TRIP_REQUEST",
+                    request.getId().toString(),
+                    "Solicitação de viagem #" + request.getId() + " agendada com veículo "
+                            + lockedVehicle.getPlate() + " e motorista " + lockedDriver.getUser().getName(),
+                    null
+            );
+        }
         return request;
     }
 
