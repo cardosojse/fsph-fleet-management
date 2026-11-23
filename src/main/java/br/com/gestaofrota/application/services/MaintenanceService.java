@@ -394,7 +394,15 @@ public class MaintenanceService implements MaintenanceAvailabilityGuard {
 
     @Transactional(readOnly = true)
     public List<PreventiveScheduleResponse> listActiveAlerts() {
-        LocalDate today = LocalDate.now(clock);
+        return activeAlertsOn(LocalDate.now(clock));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PreventiveScheduleResponse> listActiveAlertsAt(java.time.Instant reference) {
+        return activeAlertsOn(LocalDate.ofInstant(reference, clock.getZone()));
+    }
+
+    private List<PreventiveScheduleResponse> activeAlertsOn(LocalDate today) {
         return schedules.findByStatusOrderByTargetDateAsc(MaintenanceScheduleStatus.PENDING).stream()
                 .filter(schedule -> schedule.getVehicle().isActive())
                 .map(schedule -> PreventiveScheduleResponse.from(schedule, today))
