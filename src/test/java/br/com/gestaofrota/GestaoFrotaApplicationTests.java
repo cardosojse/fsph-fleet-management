@@ -15,6 +15,7 @@ import br.com.gestaofrota.application.services.DriverLicenseService;
 import br.com.gestaofrota.application.services.MaintenanceService;
 import br.com.gestaofrota.application.services.PrimeFuelStationService;
 import br.com.gestaofrota.application.services.FuelingService;
+import br.com.gestaofrota.application.reports.FuelingReportQueryService;
 import br.com.gestaofrota.application.services.TripRequestService;
 import br.com.gestaofrota.application.services.NotificationService;
 import br.com.gestaofrota.application.services.RouteService;
@@ -35,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@MockitoBean(types = FuelingReportQueryService.class)
 class GestaoFrotaApplicationTests {
     @MockitoBean
     private br.com.gestaofrota.application.services.SvoCollectionOrderService svoCollectionOrderService;
