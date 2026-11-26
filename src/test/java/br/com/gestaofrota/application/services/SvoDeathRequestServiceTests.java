@@ -157,7 +157,7 @@ class SvoDeathRequestServiceTests {
         UUID reqId = UUID.randomUUID();
         ReflectionTestUtils.setField(deathRequest, "id", reqId);
 
-        when(requestRepository.findById(reqId)).thenReturn(Optional.of(deathRequest));
+        when(requestRepository.lockById(reqId)).thenReturn(Optional.of(deathRequest));
         when(requestRepository.save(deathRequest)).thenReturn(deathRequest);
 
         CancelSvoDeathRequest cancelReq = new CancelSvoDeathRequest("Família acionou médico particular");
@@ -194,7 +194,7 @@ class SvoDeathRequestServiceTests {
         ReflectionTestUtils.setField(deathRequest, "id", reqId);
         deathRequest.triage(atendenteUser, true, null); // Status vira TRIAGED
 
-        when(requestRepository.findById(reqId)).thenReturn(Optional.of(deathRequest));
+        when(requestRepository.lockById(reqId)).thenReturn(Optional.of(deathRequest));
 
         assertThatThrownBy(() -> requestService.cancel(reqId, new CancelSvoDeathRequest("Motivo"), requesterActor))
                 .isInstanceOf(InvalidRequestException.class)
@@ -237,7 +237,7 @@ class SvoDeathRequestServiceTests {
                 Set.of(Permission.SVO_REQUESTS_WRITE)
         );
 
-        when(requestRepository.findById(reqId)).thenReturn(Optional.of(deathRequest));
+        when(requestRepository.lockById(reqId)).thenReturn(Optional.of(deathRequest));
 
         assertThatThrownBy(() -> requestService.cancel(reqId, new CancelSvoDeathRequest("Motivo"), otherUser))
                 .isInstanceOf(InvalidRequestException.class)
@@ -269,7 +269,7 @@ class SvoDeathRequestServiceTests {
         UUID reqId = UUID.randomUUID();
         ReflectionTestUtils.setField(deathRequest, "id", reqId);
 
-        when(requestRepository.findById(reqId)).thenReturn(Optional.of(deathRequest));
+        when(requestRepository.lockById(reqId)).thenReturn(Optional.of(deathRequest));
         when(userRepository.findById(atendenteActor.id())).thenReturn(Optional.of(atendenteUser));
         when(requestRepository.save(deathRequest)).thenReturn(deathRequest);
 
@@ -307,7 +307,7 @@ class SvoDeathRequestServiceTests {
         UUID reqId = UUID.randomUUID();
         ReflectionTestUtils.setField(deathRequest, "id", reqId);
 
-        when(requestRepository.findById(reqId)).thenReturn(Optional.of(deathRequest));
+        when(requestRepository.lockById(reqId)).thenReturn(Optional.of(deathRequest));
         when(userRepository.findById(atendenteActor.id())).thenReturn(Optional.of(atendenteUser));
 
         TriageSvoDeathRequest triageReq = new TriageSvoDeathRequest(true, null);
@@ -342,7 +342,7 @@ class SvoDeathRequestServiceTests {
         UUID reqId = UUID.randomUUID();
         ReflectionTestUtils.setField(deathRequest, "id", reqId);
 
-        when(requestRepository.findById(reqId)).thenReturn(Optional.of(deathRequest));
+        when(requestRepository.lockById(reqId)).thenReturn(Optional.of(deathRequest));
         when(userRepository.findById(atendenteActor.id())).thenReturn(Optional.of(atendenteUser));
         when(requestRepository.save(deathRequest)).thenReturn(deathRequest);
 

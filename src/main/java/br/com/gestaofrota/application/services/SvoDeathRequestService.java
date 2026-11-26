@@ -88,7 +88,7 @@ public class SvoDeathRequestService {
 
     @Transactional
     public SvoDeathRequest cancel(UUID id, CancelSvoDeathRequest cancelReq, AuthenticatedUser actor) {
-        SvoDeathRequest deathRequest = requestRepository.findById(id)
+        SvoDeathRequest deathRequest = requestRepository.lockById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitação SVO", id));
 
         boolean canManage = actor.permissions() != null &&
@@ -119,7 +119,7 @@ public class SvoDeathRequestService {
             throw new InvalidRequestException("Dados da triagem não informados");
         }
 
-        SvoDeathRequest deathRequest = requestRepository.findById(id)
+        SvoDeathRequest deathRequest = requestRepository.lockById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitação SVO", id));
 
         User triagedBy = userRepository.findById(actor.id())

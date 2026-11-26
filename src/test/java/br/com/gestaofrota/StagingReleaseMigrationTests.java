@@ -17,9 +17,9 @@ class StagingReleaseMigrationTests extends PostgresIntegrationTest {
     void migratesAnEmptyDatabaseWithoutDuplicateVersions() {
         String schema = schema();
         Flyway release = flyway(schema, null);
-        assertThat(release.migrate().migrationsExecuted).isEqualTo(28); // Published history has no V11.
+        assertThat(release.migrate().migrationsExecuted).isEqualTo(29); // Published history has no V11.
         release.validate();
-        assertThat(release.info().current().getVersion().toString()).isEqualTo("29");
+        assertThat(release.info().current().getVersion().toString()).isEqualTo("30");
     }
 
     @Test
@@ -46,9 +46,9 @@ class StagingReleaseMigrationTests extends PostgresIntegrationTest {
         var permissions = jdbc.queryForList("SELECT role, permission FROM role_permissions ORDER BY role, permission");
 
         Flyway release = flyway(schema, null);
-        assertThat(release.migrate().migrationsExecuted).isEqualTo(4);
+        assertThat(release.migrate().migrationsExecuted).isEqualTo(5);
         release.validate();
-        assertThat(release.info().current().getVersion().toString()).isEqualTo("29");
+        assertThat(release.info().current().getVersion().toString()).isEqualTo("30");
         for (String table : tables) assertThat(rows(jdbc, table)).as(table).isEqualTo(rows.get(table));
         assertThat(jdbc.queryForList("SELECT version, script, checksum, success FROM flyway_schema_history WHERE version IS NULL OR version::int <= 25 ORDER BY installed_rank"))
                 .isEqualTo(history);

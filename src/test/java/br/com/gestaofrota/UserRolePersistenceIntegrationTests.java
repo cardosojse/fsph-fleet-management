@@ -140,7 +140,15 @@ class UserRolePersistenceIntegrationTests extends PostgresIntegrationTest {
                     );
                     default -> Set.of(Permission.SECTORS_READ);
                 };
-                assertThat(rolePermissionService.find(role)).isEqualTo(expected);
+                var extended = EnumSet.copyOf(expected);
+                switch(role) {
+                    case GESTOR_FROTA -> extended.addAll(Set.of(Permission.SVO_ORDERS_READ,Permission.SVO_ORDERS_MANAGE,Permission.SVO_ORDERS_REPORT));
+                    case GESTOR_SVO -> extended.addAll(Set.of(Permission.SVO_ORDERS_READ,Permission.SVO_ORDERS_MANAGE,Permission.SVO_ORDERS_NOTES,Permission.SVO_ORDERS_REPORT));
+                    case ATENDENTE_SVO -> extended.addAll(Set.of(Permission.SVO_ORDERS_READ,Permission.SVO_ORDERS_NOTES));
+                    case MOTORISTA,EQUIPE_COLETA_SVO -> extended.addAll(Set.of(Permission.SVO_ORDERS_READ,Permission.SVO_ORDERS_EXECUTE));
+                    default -> {}
+                }
+                assertThat(rolePermissionService.find(role)).isEqualTo(extended);
             }
         }
     }

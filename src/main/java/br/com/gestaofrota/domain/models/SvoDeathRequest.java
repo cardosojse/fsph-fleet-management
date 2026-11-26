@@ -83,6 +83,10 @@ public class SvoDeathRequest {
     @Column(name = "triaged_at")
     private Instant triagedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="triage_sector_id")
+    private Sector triageSector;
+
     @Column(length = 500)
     private String notes;
 
@@ -278,6 +282,7 @@ public class SvoDeathRequest {
         }
 
         this.triagedBy = triagedByUser;
+        this.triageSector = triagedByUser.getSector();
         this.triagedAt = Instant.now();
 
         if (approved) {
@@ -294,6 +299,8 @@ public class SvoDeathRequest {
             this.rejectionReason = reason.trim();
         }
     }
+
+    public Sector getTriageSector() { return triageSector != null ? triageSector : triagedBy.getSector(); }
 
     public void markOrderGenerated() {
         if (this.status != SvoRequestStatus.TRIAGED) {

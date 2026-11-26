@@ -36,6 +36,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @ActiveProfiles("test")
 class GestaoFrotaApplicationTests {
+    @MockitoBean
+    private br.com.gestaofrota.application.services.SvoCollectionOrderService svoCollectionOrderService;
 
 	@MockitoBean
 	private AdminInitializer adminInitializer;

@@ -40,6 +40,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class OpenApiConfigTests {
+    @MockitoBean
+    private br.com.gestaofrota.application.services.SvoCollectionOrderService svoCollectionOrderService;
 
     @Autowired
     private MockMvc mockMvc;

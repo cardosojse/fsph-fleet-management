@@ -1,5 +1,7 @@
 # fsph-fleet-management
 
+Consulte [Acompanhamento de coletas SVO](docs/coletas-svo.md) para o vínculo com a triagem, endpoints, autorização, disponibilidade, histórico e validações.
+
 Para homologação no Render com Neon, consulte [Deploy Render/Neon](docs/deploy-render-neon.md).
 
 Sistema de gestão de frotas desenvolvido com:
